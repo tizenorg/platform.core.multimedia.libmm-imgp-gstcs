@@ -19,76 +19,83 @@
  *
  */
 
+#ifndef __MM_UTIL_GSTCS_H__
+#define __MM_UTIL_GSTCS_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define buf_size 9
+#define IMAGE_FORMAT_LABEL_BUFFER_SIZE 9
 
 typedef enum
 {
-    MM_UTIL_ROTATE_0,               /**< Rotation 0 degree - no effect */
-    MM_UTIL_ROTATE_90,              /**< Rotation 90 degree */
-    MM_UTIL_ROTATE_180,             /**< Rotation 180 degree */
-    MM_UTIL_ROTATE_270,             /**< Rotation 270 degree */
-    MM_UTIL_ROTATE_FLIP_HORZ,       /**< Flip horizontal */
-    MM_UTIL_ROTATE_FLIP_VERT,       /**< Flip vertial */
-    MM_UTIL_ROTATE_NUM              /**< Number of rotation types */
-} mm_util_img_rotate_type;
+	MM_UTIL_ROTATE_0,               /**< Rotation 0 degree - no effect */
+	MM_UTIL_ROTATE_90,              /**< Rotation 90 degree */
+	MM_UTIL_ROTATE_180,             /**< Rotation 180 degree */
+	MM_UTIL_ROTATE_270,             /**< Rotation 270 degree */
+	MM_UTIL_ROTATE_FLIP_HORZ,       /**< Flip horizontal */
+	MM_UTIL_ROTATE_FLIP_VERT,       /**< Flip vertial */
+	MM_UTIL_ROTATE_NUM              /**< Number of rotation types */
+} mm_util_img_rotate_type_e;
 
 /* Enumerations */
 typedef enum
 {
-        IMGP_CSC = 0,
+	IMGP_CSC = 0,
 	IMGP_RSZ,
 	IMGP_ROT,
-} imgp_type;
+} imgp_type_e;
 
 typedef enum
 {
-    /* YUV planar format */
-    MM_UTIL_IMG_FMT_YUV420 = 0x00,  /**< YUV420 format - planer */
-    MM_UTIL_IMG_FMT_YUV422,         /**< YUV422 format - planer */
-    MM_UTIL_IMG_FMT_I420,           /**< YUV420 format - planar */
-    MM_UTIL_IMG_FMT_NV12,           /**< NV12 format - planer */
+	/* YUV planar format */
+	MM_UTIL_IMG_FMT_YUV420 = 0x00,  /**< YUV420 format - planer */
+	MM_UTIL_IMG_FMT_YUV422,         /**< YUV422 format - planer */
+	MM_UTIL_IMG_FMT_I420,           /**< YUV420 format - planar */
+	MM_UTIL_IMG_FMT_NV12,           /**< NV12 format - planer */
 
-    /* YUV packed format */
-    MM_UTIL_IMG_FMT_UYVY,           /**< UYVY format - YUV packed format */
-    MM_UTIL_IMG_FMT_YUYV,           /**< YUYV format - YUV packed format */
+	/* YUV packed format */
+	MM_UTIL_IMG_FMT_UYVY,           /**< UYVY format - YUV packed format */
+	MM_UTIL_IMG_FMT_YUYV,           /**< YUYV format - YUV packed format */
 
-    /* RGB color */
-    MM_UTIL_IMG_FMT_RGB565,         /**< RGB565 pixel format */
-    MM_UTIL_IMG_FMT_RGB888,         /**< RGB888 pixel format */
-    MM_UTIL_IMG_FMT_ARGB8888,       /**< ARGB8888 pixel format */
+	/* RGB color */
+	MM_UTIL_IMG_FMT_RGB565,         /**< RGB565 pixel format */
+	MM_UTIL_IMG_FMT_RGB888,         /**< RGB888 pixel format */
+	MM_UTIL_IMG_FMT_ARGB8888,       /**< ARGB8888 pixel format */
 
-    //added by yh8004.kim
-    MM_UTIL_IMG_FMT_BGRA8888,      /**< BGRA8888 pixel format */
-    MM_UTIL_IMG_FMT_RGBA8888,      /**< RGBA8888 pixel format */
-    MM_UTIL_IMG_FMT_BGRX8888,      /**<BGRX8888 pixel format */
-    /* non-standard format */
-    MM_UTIL_IMG_FMT_NV12_TILED,     /**< Customized color format in s5pc110 */
-    MM_UTIL_IMG_FMT_NUM,            /**< Number of image formats */
-} mm_util_img_format;
+	//added by yh8004.kim
+	MM_UTIL_IMG_FMT_BGRA8888,      /**< BGRA8888 pixel format */
+	MM_UTIL_IMG_FMT_RGBA8888,      /**< RGBA8888 pixel format */
+	MM_UTIL_IMG_FMT_BGRX8888,      /**<BGRX8888 pixel format */
+	/* non-standard format */
+	MM_UTIL_IMG_FMT_NV12_TILED,     /**< Customized color format in s5pc110 */
+	MM_UTIL_IMG_FMT_NUM,            /**< Number of image formats */
+} mm_util_img_format_e;
 
 /**
  * Image Process Info for dlopen
  */
-typedef struct _imgp_info
+typedef struct _imgp_info_s
 {
 	unsigned char *src;
-	char   input_format_label[buf_size];
-	mm_util_img_format src_format;
+	char   input_format_label[IMAGE_FORMAT_LABEL_BUFFER_SIZE];
+	mm_util_img_format_e src_format;
 	unsigned int src_width;
 	unsigned int src_height;
 	unsigned char *dst;
-	char  output_format_label[buf_size];
-	mm_util_img_format dst_format;
+	char  output_format_label[IMAGE_FORMAT_LABEL_BUFFER_SIZE];
+	mm_util_img_format_e dst_format;
 	unsigned int dst_width;
 	unsigned int dst_height;
 	unsigned int output_stride;
 	unsigned int output_elevation;
-	mm_util_img_rotate_type angle;
-} imgp_info;
+	mm_util_img_rotate_type_e angle;
+} imgp_info_s;
 
 /**
  *
@@ -108,7 +115,7 @@ mm_setup_image_size(const char* image_format_label, int width, int height);
  * @remark	resize 					if input_width != output_width or input_height != output_height
  *
  * @remark 	rotate 					flip the image
- * @param	 _imgp_type file 									 [in]		convert / resize / rotate
+ * @param	 _imgp_type_e file 									 [in]		convert / resize / rotate
  * @param	input_ file 										 [in]		"filename.yuv" or  "filename,rgb" etc
  * @param	input_format_lable, output_format_lable 				 [in]		 I420 or rgb888 etc
  * @param	input_width, input_height, output_width, output_height	 [in]		 int value
@@ -120,4 +127,10 @@ mm_setup_image_size(const char* image_format_label, int width, int height);
 */
 
 int
-mm_imgp(imgp_info* _imgp_info, imgp_type _imgp_type);
+mm_imgp(imgp_info_s* pImgp_info, imgp_type_e _imgp_type_e);
+
+#ifdef __cplusplus__
+};
+#endif
+
+#endif	/*__MM_UTIL_GSTCS_H__*/

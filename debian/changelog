@@ -1,8 +1,7 @@
-libmm-imgp-gstcs (0.1-10) unstable; urgency=low
+libmm-imgp-gstcs (0.1-12) unstable; urgency=low
 
-  * Git Init
+  * Update latest
   * Git: pkgs/l/libmm-imgp-gstcs
-  * Tag: libmm-imgp-gstcs_0.1-10
+  * Tag: libmm-imgp-gstcs_0.1-12
 
- -- YoungHun Kim <yh8004.kim@samsung.com>  Wen, 06 Dec 2011 20:29:14 +0900
-
+ -- YoungHun Kim <yh8004.kim@samsung.com>  Thu, 09 Feb 2012 20:34:54 +0900

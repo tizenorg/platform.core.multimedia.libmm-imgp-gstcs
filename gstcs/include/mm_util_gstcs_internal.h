@@ -19,6 +19,12 @@
  *
  */
 
+#ifndef __MM_UTIL_GSTCS_INTERNAL_H__
+#define __MM_UTIL_GSTCS_INTERNAL_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <glib.h>
 #include <gst/gst.h>
@@ -26,34 +32,37 @@
 #include <gst/app/gstappsrc.h>
 #include <gst/app/gstappbuffer.h>
 #include <gst/app/gstappsink.h>
-#ifdef __cplusplus
-        extern "C" {
-#endif
 #include "mm_util_gstcs.h"
 #include "mm_log.h"
 
-#define buf_size 9
-
-typedef struct _image_format
+typedef struct _image_format_s
 {
-	char format_label[buf_size]; //I420, AYUV, RGB888, BGRA8888
-	char colorspace[buf_size]; // yuv, rgb, RGBA
+	char format_label[IMAGE_FORMAT_LABEL_BUFFER_SIZE]; //I420, AYUV, RGB888, BGRA8888
+	char colorspace[IMAGE_FORMAT_LABEL_BUFFER_SIZE]; // yuv, rgb, RGBA
 	int width;
 	int height;
 	int stride;
 	int elevation;
 	int blocksize;
 	GstCaps* caps;
-} image_format;	
+} image_format_s;
 
-typedef struct _gstreamer
+typedef struct _gstreamer_s
 {
 	GMainLoop *loop;
 	GstElement *pipeline;
 	GstElement *appsrc;
-	GstElement *colorspace; 
+	GstElement *colorspace;
 	GstElement *videoscale;
 	GstElement *videoflip;
-	GstElement *appsink; 
+	GstElement *appsink;
 	GstBuffer *output_buffer;
-} gstreamer;
+} gstreamer_s;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif	/*__MM_UTIL_GSTCS_INTERNAL_H__*/
+
+
