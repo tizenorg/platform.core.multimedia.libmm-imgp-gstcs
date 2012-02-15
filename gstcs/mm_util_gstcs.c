@@ -219,7 +219,9 @@ _mm_check_rotate_format_label(const char* __format_label)
 {
 	gboolean _bool = FALSE;
 
-	if(strcmp(__format_label, "I420") == 0 ||strcmp(__format_label, "YV12") == 0 || strcmp(__format_label, "IYUV") == 0) {
+	if(strcmp(__format_label, "I420") == 0 ||strcmp(__format_label, "YV12") == 0 || strcmp(__format_label, "IYUV") 
+		|| strcmp(__format_label, "RGB888") ||strcmp(__format_label, "BGR888") == 0 ||strcmp(__format_label, "RGBA8888") == 0
+		|| strcmp(__format_label, "ARGB8888") == 0 ||strcmp(__format_label, "BGRA8888") == 0 ||strcmp(__format_label, "ABGR8888") == 0 ) {
 		_bool=TRUE;
 	}
 
@@ -523,7 +525,6 @@ _mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, gstreamer_s * pGstreamer_
 	gst_buffer_set_caps (gst_buf, _caps);
 	gst_app_src_push_buffer (GST_APP_SRC (pGstreamer_s->appsrc), gst_buf); //push buffer to pipeline
 	g_free(GST_BUFFER_MALLOCDATA(gst_buf)); gst_buf = NULL; //gst_buffer_finalize(gst_buf) { buffer->free_func (buffer->malloc_data); }
-	mmf_debug (MMF_DEBUG_LOG, "[%s][%05d] #g_free#gst_buf: 0x%2x\n", __func__, __LINE__, gst_buf);
 	return ret;
 }
 
@@ -629,10 +630,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 		gst_object_unref (pGstreamer_s->pipeline);
 		g_free(GST_BUFFER_MALLOCDATA(pGstreamer_s->output_buffer));
 		pGstreamer_s->output_buffer = NULL;
-		mmf_debug (MMF_DEBUG_LOG, "[%s][%05d] #g_free# pGstreamer_s->output_buffer: 0x%2x\n", __func__, __LINE__, pGstreamer_s->output_buffer);
-
 		g_free (pGstreamer_s);
-		mmf_debug (MMF_DEBUG_LOG, "[%s][%05d] pGstreamer_s: 0x%2x\n", __func__, __LINE__, pGstreamer_s);
 
 		mmf_debug(MMF_DEBUG_LOG,"[%s][%05d] End mm_convert_colorspace \n", __func__, __LINE__);
 	}

@@ -1,3 +1,11 @@
+libmm-imgp-gstcs (0.1-13) unstable; urgency=low
+
+  * Update rotate image format
+  * Git: pkgs/l/libmm-imgp-gstcs
+  * Tag: libmm-imgp-gstcs_0.1-13
+
+ -- YoungHun Kim <yh8004.kim@samsung.com>  Tue, 14 Feb 2012 20:19:20 +0900
+
 libmm-imgp-gstcs (0.1-12) unstable; urgency=low
 
   * Update latest
