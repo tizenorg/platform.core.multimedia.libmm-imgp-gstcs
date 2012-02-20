@@ -458,8 +458,14 @@ _mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info)
 	strncpy(__format->format_label, pImgp_info->output_format_label, sizeof(__format->format_label));
 	_mm_set_image_colorspace(__format);
 	_mm_round_up_output_image_widh_height(__format->colorspace, pImgp_info);
-	__format->width=pImgp_info->dst_width;
-	__format->height=pImgp_info->dst_height;
+
+	if(pImgp_info->angle == MM_UTIL_ROTATE_90 || pImgp_info->angle == MM_UTIL_ROTATE_270) {
+		__format->width=pImgp_info->dst_height;
+		__format->height=pImgp_info->dst_width;
+	}else {
+		__format->width=pImgp_info->dst_width;
+		__format->height=pImgp_info->dst_height;
+	}
 
 	__format->blocksize = mm_setup_image_size(pImgp_info->output_format_label, pImgp_info->dst_width, pImgp_info->dst_height);
 	mmf_debug(MMF_DEBUG_LOG,"[%s][%05d] output_format_label: %s", __func__, __LINE__, pImgp_info->output_format_label);
@@ -542,7 +548,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 	}
 
 
-	/*  Make appsink emit the "new-preroll" and "new-buffer" signals. This  option is by default disabled because  signal emission is expensive and unneeded when the application prefers  to operate in pull mode.   */
+	/* Make appsink emit the "new-preroll" and "new-buffer" signals. This  option is by default disabled because  signal emission is expensive and unneeded when the application prefers  to operate in pull mode.   */
 	 gst_app_sink_set_emit_signals ((GstAppSink*)pGstreamer_s->appsink, TRUE);
 
 	bus = gst_pipeline_get_bus (GST_PIPELINE (pGstreamer_s->pipeline)); //GST_PIPELINE (pipeline));
@@ -558,7 +564,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 
 	/*link pipeline*/
 	mmf_debug(MMF_DEBUG_LOG, "[%s][%05d] Start mm_link_pipeline", __func__, __LINE__);
-	_mm_link_pipeline( pGstreamer_s, input_format,  output_format, pImgp_info->angle);
+	_mm_link_pipeline( pGstreamer_s, input_format, output_format, pImgp_info->angle);
 	mmf_debug(MMF_DEBUG_LOG, "[%s][%05d] End mm_link_pipeline", __func__, __LINE__);
 
 	/* Conecting to the new-buffer signal emited by the appsink*/ 
