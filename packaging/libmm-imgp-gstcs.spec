@@ -1,23 +1,21 @@
-#sbs-git:slp/pkgs/l/libmm-imgp-gstcs libmm-imgp-gstcs_0.1-1 9534d4f9e2abccae65989a77be0f7f1352bf2318
 Name:       libmm-imgp-gstcs
 Summary:    Multimedia Framework Utility Library
 Version:    0.1
-Release:    38
+Release:    1
 Group:      System/Libraries
-License:    TBD
-Source0:    %{name}-%{version}.tar.bz2
+License:    Apache-2.0
+Source0:    %{name}-%{version}.tar.gz
 Requires(post):  /sbin/ldconfig
 Requires(postun):  /sbin/ldconfig
-BuildRequires:  pkgconfig(mm-common)
+BuildRequires:  pkgconfig(mm-common), libmm-common-internal-devel
 BuildRequires:  pkgconfig(mm-log)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(gstreamer-0.10)
 BuildRequires:  pkgconfig(gstreamer-app-0.10)
 BuildRequires:  pkgconfig(gmodule-2.0)
 
-BuildRoot:  %{_tmppath}/%{name}-%{version}-build
-
 %description
+Multimedia Framework Utility Library
 
 %package devel
 Summary:    Multimedia Framework Utility Library (DEV)
@@ -25,6 +23,7 @@ Group:      Development/Libraries
 Requires:   %{name} = %{version}-%{release}
 
 %description devel
+Development files for the Multimedia Framework Utility Library
 
 %prep
 %setup -q
@@ -54,7 +53,6 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{_libdir}/*.so*
-#%exclude %{_bindir}/*_testsuite
 
 %files devel
 %defattr(-,root,root,-)
