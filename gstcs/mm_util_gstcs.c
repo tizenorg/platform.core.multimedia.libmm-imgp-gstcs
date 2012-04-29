@@ -439,13 +439,14 @@ _mm_set_input_image_format_s_struct(imgp_info_s* pImgp_info) //char* __format_la
 }
 
 static void
-_mm_round_up_output_image_widh_height(char* __colorsapce, imgp_info_s* pImgp_info) //char* __colorspace, int __width, int __height)
+_mm_round_up_output_image_widh_height(image_format_s* pFormat)
 {
-	if(strcmp(__colorsapce,"YUV") ==0) {
-		pImgp_info->src_width =GST_ROUND_UP_8(pImgp_info->src_width); // because the result of image size is multiples of 8
-		pImgp_info->src_height=GST_ROUND_UP_8(pImgp_info->src_height);
-	}else if(strcmp(__colorsapce, "RGB") ==0) {
-		pImgp_info->src_width=GST_ROUND_UP_4(pImgp_info->src_width);
+	if(strcmp(pFormat->colorspace,"YUV") ==0) {
+		pFormat->stride=MM_UTIL_ROUND_UP_8(pFormat->width);
+		pFormat->elevation=MM_UTIL_ROUND_UP_8(pFormat->height);
+	}else if(strcmp(pFormat->colorspace, "RGB") ==0) {
+		pFormat->stride=MM_UTIL_ROUND_UP_4(pFormat->width);
+		pFormat->elevation=MM_UTIL_ROUND_UP_2(pFormat->height);
 	}
 }
 
@@ -457,14 +458,15 @@ _mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info)
 	__format=(image_format_s*)malloc(sizeof(image_format_s));
 	strncpy(__format->format_label, pImgp_info->output_format_label, sizeof(__format->format_label));
 	_mm_set_image_colorspace(__format);
-	_mm_round_up_output_image_widh_height(__format->colorspace, pImgp_info);
 
 	if(pImgp_info->angle == MM_UTIL_ROTATE_90 || pImgp_info->angle == MM_UTIL_ROTATE_270) {
 		__format->width=pImgp_info->dst_height;
-		__format->height=pImgp_info->dst_width;
+		__format->height= pImgp_info->dst_width;
+		_mm_round_up_output_image_widh_height(__format);
 	}else {
 		__format->width=pImgp_info->dst_width;
 		__format->height=pImgp_info->dst_height;
+		_mm_round_up_output_image_widh_height(__format);
 	}
 
 	__format->blocksize = mm_setup_image_size(pImgp_info->output_format_label, pImgp_info->dst_width, pImgp_info->dst_height);
@@ -594,7 +596,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 
 	/* error */
 	if (ret_state == 0) 	{
-		mmf_debug(MMF_DEBUG_ERROR, "[%s][%05d] GST_STATE_CHANGE_FAILURE", __func__, __LINE__); //  GST_STATE_CHANGE_SUCCESS = 1,  GST_STATE_CHANGE_ASYNC  = 2,   GST_STATE_CHANGE_NO_PREROLL= 3
+		mmf_debug(MMF_DEBUG_ERROR, "[%s][%05d] GST_STATE_CHANGE_FAILURE", __func__, __LINE__);
 		return MM_ERROR_IMAGE_INVALID_VALUE;
 	}else {
 		#if 0
@@ -619,13 +621,13 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 		mmf_debug (MMF_DEBUG_LOG, "[%s][%05d] Success gst_element_get_state\n", __func__, __LINE__);
 
 		if (ret_state == 0) 	{
-			mmf_debug(MMF_DEBUG_ERROR, "GST_STATE_CHANGE_FAILURE"); //  GST_STATE_CHANGE_SUCCESS = 1,  GST_STATE_CHANGE_ASYNC  = 2,   GST_STATE_CHANGE_NO_PREROLL= 3 
+			mmf_debug(MMF_DEBUG_ERROR, "GST_STATE_CHANGE_FAILURE");
 		}else {
 			if(pGstreamer_s->output_buffer != NULL) {
-				int buffer_size  = GST_BUFFER_SIZE(pGstreamer_s->output_buffer);
+				int buffer_size = GST_BUFFER_SIZE(pGstreamer_s->output_buffer);
 				mmf_debug (MMF_DEBUG_LOG, "[%s][%05d] buffer size: %d\n", __func__, __LINE__, buffer_size);
-				if( buffer_size !=  mm_setup_image_size(pImgp_info->output_format_label, pImgp_info->output_stride, pImgp_info->output_elevation)) {
-					mmf_debug (MMF_DEBUG_ERROR, "[%s][%05d] Buffer size is different\n", __func__, __LINE__);
+				if( buffer_size != mm_setup_image_size(pImgp_info->output_format_label, pImgp_info->output_stride, pImgp_info->output_elevation)) {
+					mmf_debug (MMF_DEBUG_LOG, "[%s][%05d] Buffer size is different stride:%d elevation: %d\n", __func__, __LINE__, pImgp_info->output_stride, pImgp_info->output_elevation);
 				}
 				mmf_debug (MMF_DEBUG_LOG, "[%s][%05d] pGstreamer_s->output_buffer: 0x%2x\n", __func__, __LINE__, pGstreamer_s->output_buffer);
 				memcpy( pImgp_info->dst, (char*)GST_BUFFER_DATA(pGstreamer_s->output_buffer), buffer_size);
@@ -701,17 +703,18 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 	mmf_debug(MMF_DEBUG_LOG,"[%s][%05d] [input] format label : %s width: %d height: %d\t[output] format label: %s width: %d height: %d rotation vaule: %d dst: 0x%2x", __func__, __LINE__,
 		pImgp_info->input_format_label,  pImgp_info->src_width, pImgp_info->src_height, pImgp_info->output_format_label,  pImgp_info->dst_width, pImgp_info->dst_height, pImgp_info->angle, pImgp_info->dst);
 
-	pImgp_info->output_stride = pImgp_info->dst_width;
-	pImgp_info->output_elevation = pImgp_info->dst_height;
 	if(pImgp_info->dst == NULL) {
 		mmf_debug(MMF_DEBUG_ERROR, "[%s][%05d] imgp_info_s->dst is NULL", __func__, __LINE__);
 	}
 	input_format= _mm_set_input_image_format_s_struct(pImgp_info);
 	output_format= _mm_set_output_image_format_s_struct(pImgp_info);
 
+	pImgp_info->output_stride = output_format->stride;
+	pImgp_info->output_elevation = output_format->elevation;
+
 	mmf_debug(MMF_DEBUG_LOG,"[%s][%05d] mm_check_resize_format&&mm_check_rotate_format ", __func__, __LINE__);
 
-	if(__mm_check_resize_format(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height, pImgp_info->output_format_label, pImgp_info->output_stride, pImgp_info->output_elevation)
+	if(__mm_check_resize_format(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height, pImgp_info->output_format_label, pImgp_info->dst_width, pImgp_info->dst_height)
 		&& __mm_check_rotate_format(pImgp_info->angle, pImgp_info->input_format_label, pImgp_info->output_format_label) ) {
 		#if 0 // def GST_EXT_TIME_ANALYSIS
 			MMTA_INIT();

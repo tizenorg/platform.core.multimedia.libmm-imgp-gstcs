@@ -7,12 +7,15 @@ License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Requires(post):  /sbin/ldconfig
 Requires(postun):  /sbin/ldconfig
-BuildRequires:  pkgconfig(mm-common), libmm-common-internal-devel
+BuildRequires:  pkgconfig(mm-common) 
+#BuildRequires: libmm-common-internal-devel
 BuildRequires:  pkgconfig(mm-log)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(gstreamer-0.10)
 BuildRequires:  pkgconfig(gstreamer-app-0.10)
 BuildRequires:  pkgconfig(gmodule-2.0)
+
+BuildRoot:  %{_tmppath}/%{name}-%{version}-build
 
 %description
 Multimedia Framework Utility Library
@@ -37,8 +40,6 @@ LDFLAGS+="-Wl,--rpath=%{_prefix}/lib -Wl,--hash-style=both -Wl,--as-needed" \
 %build
 make %{?jobs:-j%jobs}
 
-sed -i -e "s#@GSTCS_REQPKG@#$GSTCS_REQPKG#g" gstcs/mmutil-gstcs.pc
-
 %install
 rm -rf %{buildroot}
 %make_install
@@ -53,9 +54,5 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{_libdir}/*.so*
-
-%files devel
-%defattr(-,root,root,-)
-%{_includedir}/*
-%{_libdir}/pkgconfig/*
-
+%exclude %{_includedir}/mmf/mm_util_gstcs.h
+%exclude %{_libdir}/pkgconfig/mmutil-gstcs.pc
