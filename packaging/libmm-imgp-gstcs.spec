@@ -5,6 +5,7 @@ Release:    1
 Group:      System/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
+Source1001: packaging/libmm-imgp-gstcs.manifest 
 Requires(post):  /sbin/ldconfig
 Requires(postun):  /sbin/ldconfig
 BuildRequires:  pkgconfig(mm-common) 
@@ -38,6 +39,7 @@ LDFLAGS+="-Wl,--rpath=%{_prefix}/lib -Wl,--hash-style=both -Wl,--as-needed" \
 ./configure --prefix=%{_prefix}
 
 %build
+cp %{SOURCE1001} .
 make %{?jobs:-j%jobs}
 
 %install
@@ -52,6 +54,7 @@ rm -rf %{buildroot}
 
 
 %files
+%manifest libmm-imgp-gstcs.manifest
 %defattr(-,root,root,-)
 %{_libdir}/*.so*
 %exclude %{_includedir}/mmf/mm_util_gstcs.h
