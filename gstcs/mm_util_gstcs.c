@@ -103,7 +103,7 @@ _mm_sink_buffer (GstElement * appsink, gpointer  user_data)
 		mmf_debug(MMF_DEBUG_ERROR,"[%s][%05d] ERROR -Input Prepare Buffer!  Check createoutput buffer function", __func__, __LINE__);
 	}
 	gst_buffer_unref (_buf); //we don't need the appsink buffer anymore
-	gst_buffer_ref  (pGstreamer_s->output_buffer); //when you want to avoid flushing
+	gst_buffer_ref (pGstreamer_s->output_buffer); //when you want to avoid flushing
 }
 
 static void
@@ -300,7 +300,7 @@ _mm_link_pipeline( gstreamer_s* pGstreamer_s, image_format_s* input_format, imag
 	/* Conecting to the new-buffer signal emited by the appsink*/ 
 	mmf_debug(MMF_DEBUG_LOG, "[%s][%05d] Start  G_CALLBACK (mm_sink_buffer)", __func__, __LINE__);
 	g_signal_connect (pGstreamer_s->appsink, "new-buffer",  G_CALLBACK (_mm_sink_buffer), pGstreamer_s);
-	mmf_debug(MMF_DEBUG_LOG, "[%s][%05d] End  G_CALLBACK (mm_sink_buffer)", __func__, __LINE__)
+	mmf_debug(MMF_DEBUG_LOG, "[%s][%05d] End  G_CALLBACK (mm_sink_buffer)", __func__, __LINE__);
 }
 
 
@@ -406,13 +406,13 @@ _mm_set_image_colorspace( image_format_s* __format)
 	mmf_debug(MMF_DEBUG_LOG,"[%s][%05d] format_label: %s\n", __func__, __LINE__, __format->format_label);
 	if( (strcmp(__format->format_label, "I420") == 0) ||(strcmp(__format->format_label, "Y42B") == 0) || (strcmp(__format->format_label, "Y444") == 0)
 		|| (strcmp(__format->format_label, "YV12") == 0) ||(strcmp(__format->format_label, "NV12") == 0)  ||(strcmp(__format->format_label, "UYVY") == 0) ||(strcmp(__format->format_label, "YUYV") == 0)) {
-		strncpy(__format->colorspace, "YUV", sizeof("__format->colorspace"));
+		strncpy(__format->colorspace, "YUV", sizeof(__format->colorspace));
 	}else if( (strcmp(__format->format_label, "RGB888") == 0) ||(strcmp(__format->format_label, "BGR888") == 0) ||(strcmp(__format->format_label, "RGB565") == 0)) {
-		strncpy(__format->colorspace, "RGB",  sizeof("__format->colorspace"));
+		strncpy(__format->colorspace, "RGB", sizeof(__format->colorspace));
 	}else if( (strcmp(__format->format_label, "ARGB8888") == 0)  || (strcmp(__format->format_label, "BGRA8888") == 0) 	||(strcmp(__format->format_label, "RGBA8888") == 0)	|| (strcmp(__format->format_label, "ABGR8888") == 0)) {
-		strncpy(__format->colorspace, "RGBA",  sizeof("__format->colorspace"));
+		strncpy(__format->colorspace, "RGBA", sizeof(__format->colorspace));
 	}else if( (strcmp(__format->format_label, "BGRX") == 0)) {
-		strncpy(__format->colorspace, "BGRX",  sizeof("__format->colorspace"));
+		strncpy(__format->colorspace, "BGRX", sizeof(__format->colorspace));
 	}else {
 		mmf_debug(MMF_DEBUG_ERROR,"[%s][%05d] Check your colorspace format label", __func__, __LINE__);
 	}
@@ -424,6 +424,7 @@ _mm_set_input_image_format_s_struct(imgp_info_s* pImgp_info) //char* __format_la
 	image_format_s* __format = NULL;
 
 	__format=(image_format_s*)malloc(sizeof(image_format_s));
+	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	strncpy(__format->format_label, pImgp_info->input_format_label, sizeof(__format->format_label));
 	mmf_debug(MMF_DEBUG_LOG,"[%s][%05d] input_format_label: %s\n", __func__, __LINE__, pImgp_info->input_format_label);
 	_mm_set_image_colorspace(__format);
@@ -456,18 +457,13 @@ _mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info)
 	image_format_s* __format = NULL;
 
 	__format=(image_format_s*)malloc(sizeof(image_format_s));
+	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	strncpy(__format->format_label, pImgp_info->output_format_label, sizeof(__format->format_label));
 	_mm_set_image_colorspace(__format);
 
-	if(pImgp_info->angle == MM_UTIL_ROTATE_90 || pImgp_info->angle == MM_UTIL_ROTATE_270) {
-		__format->width=pImgp_info->dst_height;
-		__format->height= pImgp_info->dst_width;
-		_mm_round_up_output_image_widh_height(__format);
-	}else {
-		__format->width=pImgp_info->dst_width;
-		__format->height=pImgp_info->dst_height;
-		_mm_round_up_output_image_widh_height(__format);
-	}
+	__format->width=pImgp_info->dst_width;
+	__format->height=pImgp_info->dst_height;
+	_mm_round_up_output_image_widh_height(__format);
 
 	__format->blocksize = mm_setup_image_size(pImgp_info->output_format_label, pImgp_info->dst_width, pImgp_info->dst_height);
 	mmf_debug(MMF_DEBUG_LOG,"[%s][%05d] output_format_label: %s", __func__, __LINE__, pImgp_info->output_format_label);
