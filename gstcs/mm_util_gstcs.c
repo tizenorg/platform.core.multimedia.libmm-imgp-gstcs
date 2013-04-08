@@ -277,7 +277,7 @@ static void
 _mm_link_pipeline( gstreamer_s* pGstreamer_s, image_format_s* input_format, image_format_s* output_format, int _valuepGstreamer_sVideoFlipMethod)
 {
 	/* set property */
-	gst_app_src_set_caps(GST_APP_SRC(pGstreamer_s->appsrc), input_format->caps); /* g_object_set(pGstreamer_s->appsrc, "caps", input_format->caps, NULL); /* you can use appsrc'cap property */
+	gst_app_src_set_caps(GST_APP_SRC(pGstreamer_s->appsrc), input_format->caps); /* g_object_set(pGstreamer_s->appsrc, "caps", input_format->caps, NULL); you can use appsrc'cap property */
 	g_object_set(pGstreamer_s->appsrc, "num-buffers", 1, NULL);
 	g_object_set(pGstreamer_s->appsrc, "is-live", TRUE, NULL); /* add because of gstreamer_s time issue */
 	g_object_set (pGstreamer_s->appsrc, "format", GST_FORMAT_TIME, NULL);
@@ -332,7 +332,7 @@ _mm_set_image_format_s_capabilities(image_format_s* __format) /*_format_label: I
 		}else if(strcmp(__format->format_label,"UYVY") == 0) {
 			_a='U'; _b='Y', _c='V', _d='Y';
 		}else if(strcmp(__format->format_label,"YUYV") == 0) {
-			_a='Y'; _b='V', _c='Y', _d='U';
+			_a='Y'; _b='U', _c='Y', _d='2';
 		}
 
 		__format->caps = gst_caps_new_simple ("video/x-raw-yuv",
@@ -450,7 +450,7 @@ _mm_round_up_output_image_widh_height(image_format_s* pFormat)
 	if(strcmp(pFormat->colorspace,"YUV") ==0) {
 		pFormat->stride=MM_UTIL_ROUND_UP_8(pFormat->width);
 		pFormat->elevation=MM_UTIL_ROUND_UP_2(pFormat->height);
-	}else if(strcmp(pFormat->colorspace, "RGB") ==0) {
+	} else if(strcmp(pFormat->colorspace, "RGB") ==0) {
 		pFormat->stride=MM_UTIL_ROUND_UP_4(pFormat->width);
 		pFormat->elevation=MM_UTIL_ROUND_UP_2(pFormat->height);
 	}
@@ -525,15 +525,40 @@ _mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, gstreamer_s * pGstreamer_
 
 	GstBuffer* gst_buf = (GstBuffer *) gst_mini_object_new (GST_TYPE_BUFFER);
 
-	if(gst_buf==NULL) 	{
+	if(gst_buf==NULL) {
 		debug_error("buffer is NULL\n");
 		return MM_ERROR_IMAGE_INVALID_VALUE;
 	}
-	GST_BUFFER_DATA (gst_buf) = (guint8 *) pImgp_info->src;
-	GST_BUFFER_SIZE (gst_buf) = mm_setup_image_size(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height);
-	GST_BUFFER_FLAG_SET (gst_buf, GST_BUFFER_FLAG_READONLY);
 
+	int gst_imgsize = mm_setup_image_size(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height);
+	debug_log("GST_BUFFER_SIZE (src): %d", gst_imgsize);
+	if(pImgp_info->src_format == MM_UTIL_IMG_FMT_RGB888 && pImgp_info->src_width %4 != 0) {
+		int real_width = pImgp_info->src_width * 3;
+		int stride = GST_ROUND_UP_4(real_width);
+		int i, y;
+		guint8 * data =(guint8 *) g_malloc (gst_imgsize);
+		if(data==NULL) {
+			debug_error("app_buffer is NULL\n");
+			return MM_ERROR_IMAGE_INVALID_VALUE;
+		}
+		for (y = 0; y < pImgp_info->src_height; y++) {
+			guint8 *pLine = (guint8 *) &(pImgp_info->src[real_width * y]);
+			for(i=0; i < real_width; i ++) {
+				data[y * stride + i] = pLine[i];
+			}
+			for(i=real_width; i < stride; i ++) {
+				data[y * stride + i] = 0x00;
+			}
+		}
+		debug_log("[padding] GST_BUFFER_SIZE (data): %d", GST_BUFFER_SIZE (data));
+		GST_BUFFER_DATA (gst_buf) = (guint8 *) data;
+	}else {
+		GST_BUFFER_DATA (gst_buf) = (guint8 *) pImgp_info->src;
+	}
+	GST_BUFFER_SIZE (gst_buf) = gst_imgsize;
+	GST_BUFFER_FLAG_SET (gst_buf, GST_BUFFER_FLAG_READONLY);
 	gst_buffer_set_caps (gst_buf, _caps);
+
 	gst_app_src_push_buffer (GST_APP_SRC (pGstreamer_s->appsrc), gst_buf); /* push buffer to pipeline */
 	g_free(GST_BUFFER_MALLOCDATA(gst_buf)); gst_buf = NULL; /* gst_buffer_finalize(gst_buf) { buffer->free_func (buffer->malloc_data); } */
 	return ret;
@@ -557,7 +582,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 	 gst_app_sink_set_emit_signals ((GstAppSink*)pGstreamer_s->appsink, TRUE);
 
 	bus = gst_pipeline_get_bus (GST_PIPELINE (pGstreamer_s->pipeline)); /* GST_PIPELINE (pipeline)); */
-	/* gst_bus_add_watch (bus, (GstBusFunc) _mm_on_sink_message , pGstreamer_s); /* thow to appplicaton */
+	/* gst_bus_add_watch (bus, (GstBusFunc) _mm_on_sink_message, pGstreamer_s); thow to appplicaton */
 	gst_object_unref(bus);
 
 	debug_log("Start mm_push_buffer_into_pipeline");
@@ -736,7 +761,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 		if(ret == MM_ERROR_NONE) {
 			debug_log("End mm_convert_colorspace [pImgp_info->dst: %p]", pImgp_info->dst);
 		}else if (ret != MM_ERROR_NONE) {
-			debug_error("ERROR -mm_convert_colorspace");
+			debug_error("ERROR - mm_convert_colorspace");
 		}
 		#if 0 /* def GST_EXT_TIME_ANALYSIS */
 			MMTA_ACUM_ITEM_END("ffmpegcolorspace", 0);
