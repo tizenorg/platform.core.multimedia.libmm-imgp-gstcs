@@ -6,6 +6,7 @@ Release:    12
 Group:      System/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
+Source1001: 	libmm-imgp-gstcs.manifest
 BuildRequires:  pkgconfig(mm-common)
 BuildRequires:  pkgconfig(mm-log)
 BuildRequires:  pkgconfig(glib-2.0)
@@ -27,6 +28,7 @@ Multimedia Framework Utility Library (DEV).
 
 %prep
 %setup -q
+cp %{SOURCE1001} .
 
 %build
 ./autogen.sh
@@ -51,6 +53,7 @@ rm -rf %{buildroot}
 
 
 %files
+%manifest %{name}.manifest
 /usr/share/license/%{name}
 %manifest libmm-imgp-gstcs.manifest
 %defattr(-,root,root,-)
