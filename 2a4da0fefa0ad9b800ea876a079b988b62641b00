@@ -1,0 +1,8 @@
+Change-Id: I2a4da0fefa0ad9b800ea876a079b988b62641b00
+Code-Review+2: Ryan Ware <ware@linux.intel.com>
+Verified+1: Ryan Ware <ware@linux.intel.com>
+Submitted-by: Ryan Ware <ware@linux.intel.com>
+Submitted-at: Mon, 08 Jul 2013 10:06:36 -0700
+Reviewed-on: https://review.tizen.org/gerrit/4566
+Project: platform/core/multimedia/libmm-imgp-gstcs
+Branch: refs/heads/tizen
