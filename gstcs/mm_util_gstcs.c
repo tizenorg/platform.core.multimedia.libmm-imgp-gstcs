@@ -21,6 +21,7 @@
 #include "mm_util_gstcs_internal.h"
 #include <mm_debug.h>
 #include <gst/check/gstcheck.h>
+#include <gst/video/video-format.h>
 #include <mm_error.h>
 #define MM_UTIL_ROUND_UP_2(num) (((num)+1)&~1)
 #define MM_UTIL_ROUND_UP_4(num) (((num)+3)&~3)
@@ -92,38 +93,48 @@ static void
 _mm_sink_buffer (GstElement * appsink, gpointer user_data)
 {
 	GstBuffer *_buf=NULL;
+    GstSample *_sample = NULL;
 	gstreamer_s * pGstreamer_s = (gstreamer_s*) user_data;
-	_buf = gst_app_sink_pull_buffer((GstAppSink*)appsink);
+    _sample = gst_app_sink_pull_sample((GstAppSink*)appsink);
+    _buf = gst_sample_get_buffer(_sample);
 
 	pGstreamer_s->output_buffer = _buf;
 
 	if(pGstreamer_s->output_buffer != NULL) {
-		debug_log("Create Output Buffer: GST_BUFFER_DATA: %p\t GST_BUFFER_SIZE: %d\n", GST_BUFFER_DATA(pGstreamer_s->output_buffer), GST_BUFFER_SIZE (pGstreamer_s->output_buffer));
+        GstMapInfo mapinfo = GST_MAP_INFO_INIT;
+        gst_buffer_map(pGstreamer_s->output_buffer, &mapinfo, GST_MAP_READ);
+        debug_log("Create Output Buffer: GST_BUFFER_DATA: %p\t GST_BUFFER_SIZE: %d\n", mapinfo.data, mapinfo.size);
+        gst_buffer_unmap(pGstreamer_s->output_buffer, &mapinfo);
 	}else {
 		debug_error("ERROR -Input Prepare Buffer! Check createoutput buffer function");
 	}
-	gst_buffer_unref (_buf); /* we don't need the appsink buffer anymore */
 	gst_buffer_ref (pGstreamer_s->output_buffer); /* when you want to avoid flushing */
+	gst_sample_unref(_sample);
 }
 
 static void
 _mm_sink_preroll (GstElement * appsink, gpointer user_data)
 {
+    GstSample *_sample = NULL;
 	GstBuffer *_buf=NULL;
 	gstreamer_s * pGstreamer_s = (gstreamer_s*) user_data;
-	_buf = gst_app_sink_pull_preroll((GstAppSink*)appsink);
+
+    _sample = gst_app_sink_pull_preroll((GstAppSink*)appsink);
+    _buf = gst_sample_get_buffer(_sample);
 
 	pGstreamer_s->output_buffer = _buf;
 	/* pGstreamer_s->output_image_format_s->caps = GST_BUFFER_CAPS(_buf); */
 	if(pGstreamer_s->output_buffer != NULL) {
+        GstMapInfo mapinfo = GST_MAP_INFO_INIT;
+        gst_buffer_map(pGstreamer_s->output_buffer, &mapinfo, GST_MAP_READ);
 		debug_log("Create Output Buffer: GST_BUFFER_DATA: %p\t GST_BUFFER_SIZE: %d\n",
-			GST_BUFFER_DATA(pGstreamer_s->output_buffer), GST_BUFFER_SIZE (pGstreamer_s->output_buffer));
+            mapinfo.data, mapinfo.size);
+        gst_buffer_unmap(pGstreamer_s->output_buffer, &mapinfo);
 	}else {
 		debug_error("ERROR -Input Prepare Buffer! Check createoutput buffer function");
 	}
-
-	gst_buffer_unref (_buf); /* we don't need the appsink buffer anymore */
 	gst_buffer_ref (pGstreamer_s->output_buffer); /* when you want to avoid flushings */
+	gst_sample_unref(_sample);
 }
 
 static gboolean
@@ -154,9 +165,9 @@ static int
 _mm_create_pipeline( gstreamer_s* pGstreamer_s)
 {
 	int ret = MM_ERROR_NONE;
-	pGstreamer_s->pipeline= gst_pipeline_new ("ffmpegcolorsapce");
+	pGstreamer_s->pipeline= gst_pipeline_new ("videoconvert");
 	pGstreamer_s->appsrc= gst_element_factory_make("appsrc","appsrc");
-	pGstreamer_s->colorspace=gst_element_factory_make("ffmpegcolorspace","colorconverter");
+	pGstreamer_s->colorspace=gst_element_factory_make("videoconvert","colorconverter");
 
 	pGstreamer_s->videoscale=gst_element_factory_make("videoscale", "scale");
 	pGstreamer_s->videoflip=gst_element_factory_make( "videoflip", "flip" );
@@ -297,9 +308,9 @@ _mm_link_pipeline( gstreamer_s* pGstreamer_s, image_format_s* input_format, imag
 		debug_log("set_link_pipeline_order_csc_rsz");
 		_mm_link_pipeline_order_csc_rsz(pGstreamer_s, input_format, output_format);
 	}
-	/* Conecting to the new-buffer signal emited by the appsink*/
+	/* Conecting to the new-sample signal emited by the appsink*/
 	debug_log("Start G_CALLBACK (mm_sink_buffer)");
-	g_signal_connect (pGstreamer_s->appsink, "new-buffer", G_CALLBACK (_mm_sink_buffer), pGstreamer_s);
+	g_signal_connect (pGstreamer_s->appsink, "new-sample", G_CALLBACK (_mm_sink_buffer), pGstreamer_s);
 	debug_log("End G_CALLBACK (mm_sink_buffer)");
 }
 
@@ -308,7 +319,7 @@ _mm_link_pipeline( gstreamer_s* pGstreamer_s, image_format_s* input_format, imag
 static void
 _mm_set_image_format_s_capabilities(image_format_s* __format) /*_format_label: I420 _colorsapace: YUV */
 {
-	char _a='A', _b='A', _c='A', _d='A';
+	char _format_name[sizeof(GST_VIDEO_FORMATS_ALL)] = {'\0'};
 	int _bpp=0; int _depth=0; int _red_mask=0; int _green_mask=0; int _blue_mask=0; int _alpha_mask=0; int _endianness=0;
 
 	if(__format == NULL) {
@@ -319,24 +330,19 @@ _mm_set_image_format_s_capabilities(image_format_s* __format) /*_format_label: I
 	debug_log("colorspace: %s(%d)\n", __format->colorspace, strlen(__format->colorspace));
 
 	if(strcmp(__format->colorspace,"YUV") == 0) {
-		if(strcmp(__format->format_label,"I420") == 0) {
-			_a='I'; _b='4', _c='2', _d='0';
-		}else if(strcmp(__format->format_label,"Y42B") == 0) {
-			_a='Y'; _b='4', _c='2', _d='B';
-		}else if(strcmp(__format->format_label,"Y444") == 0) {
-			_a='Y'; _b='4', _c='4', _d='4';
-		}else if(strcmp(__format->format_label,"YV12") == 0) {
-			_a='Y'; _b='V', _c='1', _d='2'; /* GStreamer-CRITICAL **: gst_mini_object_ref: assertion `mini_object != NULL' failed */
-		}else if(strcmp(__format->format_label,"NV12") == 0) {
-			_a='N'; _b='V', _c='1', _d='2';
-		}else if(strcmp(__format->format_label,"UYVY") == 0) {
-			_a='U'; _b='Y', _c='V', _d='Y';
+		if(strcmp(__format->format_label,"I420") == 0
+            || strcmp(__format->format_label,"Y42B") == 0
+            || strcmp(__format->format_label,"Y444") == 0
+            || strcmp(__format->format_label,"YV12") == 0
+            || strcmp(__format->format_label,"NV12") == 0
+            || strcmp(__format->format_label,"UYVY") == 0) {
+			strcpy(_format_name, __format->format_label);
 		}else if(strcmp(__format->format_label,"YUYV") == 0) {
-			_a='Y'; _b='U', _c='Y', _d='2';
+		    strcpy(_format_name, "YVYU");
 		}
 
-		__format->caps = gst_caps_new_simple ("video/x-raw-yuv",
-			"format", GST_TYPE_FOURCC, GST_MAKE_FOURCC (_a, _b, _c, _d), /*'I', '4', '2', '0'),*/
+		__format->caps = gst_caps_new_simple ("video/x-raw",
+            "format", G_TYPE_STRING, _format_name,
 			"framerate", GST_TYPE_FRACTION, 25, 1,
 			"pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1,
 			"width", G_TYPE_INT, __format->width,
@@ -355,15 +361,12 @@ _mm_set_image_format_s_capabilities(image_format_s* __format) /*_format_label: I
 		}else if( (strcmp(__format->format_label, "BGRX") == 0)) {
 			_bpp=32; _depth=24; _red_mask=65280; _green_mask=16711680; _blue_mask=-16777216; _endianness=4321;
 		}
-		__format->caps = gst_caps_new_simple ("video/x-raw-rgb",
-			"bpp", G_TYPE_INT, _bpp,
-			"depth", G_TYPE_INT, _depth,
-			"red_mask", G_TYPE_INT, _red_mask,
-			"green_mask", G_TYPE_INT, _green_mask,
-			"blue_mask", G_TYPE_INT, _blue_mask,
+		__format->caps = gst_caps_new_simple ("video/x-raw",
+		    "format", G_TYPE_STRING,  gst_video_format_to_string(
+		                                gst_video_format_from_masks(_depth, _bpp, _endianness,
+                                                                    _red_mask, _green_mask, _blue_mask, 0)),
 			"width", G_TYPE_INT, __format->width,
 			"height", G_TYPE_INT, __format->height,
-			"endianness", G_TYPE_INT, _endianness,
 			"framerate", GST_TYPE_FRACTION, 1, 1, NULL);
 	}
 
@@ -380,16 +383,12 @@ _mm_set_image_format_s_capabilities(image_format_s* __format) /*_format_label: I
 			debug_error("***Wrong format cs type***\n");
 		}
 
-		__format->caps = gst_caps_new_simple ("video/x-raw-rgb",
-			"bpp", G_TYPE_INT, _bpp,
-			"depth", G_TYPE_INT, _depth,
-			"red_mask", G_TYPE_INT, _red_mask,
-			"green_mask", G_TYPE_INT, _green_mask,
-			"blue_mask", G_TYPE_INT, _blue_mask,
+		__format->caps = gst_caps_new_simple ("video/x-raw",
+            "format", G_TYPE_STRING,  gst_video_format_to_string(
+                                        gst_video_format_from_masks(_depth, _bpp, _endianness,
+                                                                    _red_mask, _green_mask, _blue_mask, _alpha_mask)),
 			"width", G_TYPE_INT, __format->width,
 			"height", G_TYPE_INT, __format->height,
-			"alpha_mask", G_TYPE_INT,_alpha_mask,
-			"endianness", G_TYPE_INT, _endianness,
 			"framerate", GST_TYPE_FRACTION, 1, 1, NULL);
 	}
 	if(__format->caps) {
@@ -510,57 +509,24 @@ __mm_check_rotate_format(int angle, const char* input_format_label, const char* 
 }
 
 static int
-_mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, gstreamer_s * pGstreamer_s, GstCaps*_caps)
+_mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, gstreamer_s * pGstreamer_s)
 {
 	int ret = MM_ERROR_NONE;
-	if(_caps==NULL) {
-		debug_error("caps is NULL\n");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
-	}
 
 	if(pGstreamer_s->pipeline == NULL) {
 		debug_error("pipeline is NULL\n");
 		return MM_ERROR_IMAGE_INVALID_VALUE;
 	}
 
-	GstBuffer* gst_buf = (GstBuffer *) gst_mini_object_new (GST_TYPE_BUFFER);
+	gsize data_size = mm_setup_image_size(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height);
+    GstBuffer* gst_buf = gst_buffer_new_wrapped_full(GST_MEMORY_FLAG_READONLY, pImgp_info->src, data_size, 0, data_size, NULL, NULL);
 
 	if(gst_buf==NULL) {
 		debug_error("buffer is NULL\n");
 		return MM_ERROR_IMAGE_INVALID_VALUE;
 	}
 
-	int gst_imgsize = mm_setup_image_size(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height);
-	debug_log("GST_BUFFER_SIZE (src): %d", gst_imgsize);
-	if(pImgp_info->src_format == MM_UTIL_IMG_FMT_RGB888 && pImgp_info->src_width %4 != 0) {
-		int real_width = pImgp_info->src_width * 3;
-		int stride = GST_ROUND_UP_4(real_width);
-		int i, y;
-		guint8 * data =(guint8 *) g_malloc (gst_imgsize);
-		if(data==NULL) {
-			debug_error("app_buffer is NULL\n");
-			return MM_ERROR_IMAGE_INVALID_VALUE;
-		}
-		for (y = 0; y < pImgp_info->src_height; y++) {
-			guint8 *pLine = (guint8 *) &(pImgp_info->src[real_width * y]);
-			for(i=0; i < real_width; i ++) {
-				data[y * stride + i] = pLine[i];
-			}
-			for(i=real_width; i < stride; i ++) {
-				data[y * stride + i] = 0x00;
-			}
-		}
-		debug_log("[padding] GST_BUFFER_SIZE (data): %d", GST_BUFFER_SIZE (data));
-		GST_BUFFER_DATA (gst_buf) = (guint8 *) data;
-	}else {
-		GST_BUFFER_DATA (gst_buf) = (guint8 *) pImgp_info->src;
-	}
-	GST_BUFFER_SIZE (gst_buf) = gst_imgsize;
-	GST_BUFFER_FLAG_SET (gst_buf, GST_BUFFER_FLAG_READONLY);
-	gst_buffer_set_caps (gst_buf, _caps);
-
 	gst_app_src_push_buffer (GST_APP_SRC (pGstreamer_s->appsrc), gst_buf); /* push buffer to pipeline */
-	g_free(GST_BUFFER_MALLOCDATA(gst_buf)); gst_buf = NULL; /* gst_buffer_finalize(gst_buf) { buffer->free_func (buffer->malloc_data); } */
 	return ret;
 }
 
@@ -578,7 +544,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 	}
 
 
-	/* Make appsink emit the "new-preroll" and "new-buffer" signals. This option is by default disabled because signal emission is expensive and unneeded when the application prefers to operate in pull mode. */
+	/* Make appsink emit the "new-preroll" and "new-sample" signals. This option is by default disabled because signal emission is expensive and unneeded when the application prefers to operate in pull mode. */
 	 gst_app_sink_set_emit_signals ((GstAppSink*)pGstreamer_s->appsink, TRUE);
 
 	bus = gst_pipeline_get_bus (GST_PIPELINE (pGstreamer_s->pipeline)); /* GST_PIPELINE (pipeline)); */
@@ -586,7 +552,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 	gst_object_unref(bus);
 
 	debug_log("Start mm_push_buffer_into_pipeline");
-	ret = _mm_push_buffer_into_pipeline(pImgp_info, pGstreamer_s, input_format->caps);
+    ret = _mm_push_buffer_into_pipeline(pImgp_info, pGstreamer_s);
 	if(ret != MM_ERROR_NONE) {
 		debug_error("ERROR - mm_push_buffer_into_pipeline ");
 	}
@@ -597,7 +563,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 	_mm_link_pipeline( pGstreamer_s, input_format, output_format, pImgp_info->angle);
 	debug_log("End mm_link_pipeline");
 
-	/* Conecting to the new-buffer signal emited by the appsink*/
+	/* Conecting to the new-sample signal emited by the appsink*/
 	debug_log("Start G_CALLBACK (_mm_sink_preroll)");
 	g_signal_connect (pGstreamer_s->appsink, "new-preroll", G_CALLBACK (_mm_sink_preroll), pGstreamer_s);
 	debug_log("End G_CALLBACK (mm_sink_preroll)");
@@ -609,9 +575,9 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 	ret_state = gst_element_get_state (pGstreamer_s->pipeline, NULL, NULL, GST_CLOCK_TIME_NONE);
 	debug_log("Success Get GST_STATE_PLAYING ret_state: %d", ret_state);
 	#if 0
-	/* Conecting to the new-buffer signal emited by the appsink*/
+	/* Conecting to the new-sample signal emited by the appsink*/
 	debug_log("Start G_CALLBACK (mm_sink_buffer)");
-	g_signal_connect (pGstreamer_s->appsink, "new-buffer", G_CALLBACK (_mm_sink_buffer), pGstreamer_s);
+	g_signal_connect (pGstreamer_s->appsink, "new-sample", G_CALLBACK (_mm_sink_buffer), pGstreamer_s);
 	debug_log("End G_CALLBACK (mm_sink_buffer)");
 	#endif
 	if(ret_state == 1) {
@@ -652,19 +618,21 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 			debug_error("GST_STATE_CHANGE_FAILURE");
 		}else {
 			if(pGstreamer_s->output_buffer != NULL) {
-				int buffer_size = GST_BUFFER_SIZE(pGstreamer_s->output_buffer);
+                GstMapInfo mapinfo = GST_MAP_INFO_INIT;
+                gst_buffer_map(pGstreamer_s->output_buffer, &mapinfo, GST_MAP_READ);
+                int buffer_size = mapinfo.size;
 				debug_log("buffer size: %d\n", buffer_size);
 				if( buffer_size != mm_setup_image_size(pImgp_info->output_format_label, pImgp_info->output_stride, pImgp_info->output_elevation)) {
 					debug_log("Buffer size is different stride:%d elevation: %d\n", pImgp_info->output_stride, pImgp_info->output_elevation);
 				}
 				debug_log("pGstreamer_s->output_buffer: 0x%2x\n", pGstreamer_s->output_buffer);
-				memcpy( pImgp_info->dst, (char*)GST_BUFFER_DATA(pGstreamer_s->output_buffer), buffer_size);
+                memcpy( pImgp_info->dst, mapinfo.data, buffer_size);
+                gst_buffer_unmap(pGstreamer_s->output_buffer, &mapinfo);
 			}else {
 				debug_log("pGstreamer_s->output_buffer is NULL");
 			}
 		}
 		gst_object_unref (pGstreamer_s->pipeline);
-		g_free(GST_BUFFER_MALLOCDATA(pGstreamer_s->output_buffer));
 		pGstreamer_s->output_buffer = NULL;
 		g_free (pGstreamer_s);
 
@@ -723,6 +691,10 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 	image_format_s* input_format=NULL, *output_format=NULL;
 	gstreamer_s* pGstreamer_s;
 	int ret = MM_ERROR_NONE;
+	static const int max_argc = 50;
+	gint* argc = NULL;
+	gchar** argv = NULL;
+
 	g_type_init();
 	if(pImgp_info == NULL) {
 		debug_error("imgp_info_s is NULL");
@@ -747,12 +719,30 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 		#if 0 /* def GST_EXT_TIME_ANALYSIS */
 			MMTA_INIT();
 		#endif
-		gst_init (NULL, NULL);
+		argc = malloc(sizeof(int));
+		argv = malloc(sizeof(gchar*) * max_argc);
+
+		if (!argc || !argv) {
+			debug_error("argc ||argv is NULL");
+			return MM_ERROR_IMAGE_INVALID_VALUE;
+		}
+		memset(argv, 0, sizeof(gchar*) * max_argc);
+		debug_log("memset argv");
+
+		/* add initial */
+		*argc = 1;
+		argv[0] = g_strdup( "mmutil_gstcs" );
+		/* check disable registry scan */
+		argv[*argc] = g_strdup("--gst-disable-registry-update");
+		(*argc)++;
+		debug_log("--gst-disable-registry-update");
+
+		gst_init(argc, &argv);
 
 		pGstreamer_s = g_new0 (gstreamer_s, 1);
 
 		#if 0 /* def GST_EXT_TIME_ANALYSIS */
-			 MMTA_ACUM_ITEM_BEGIN("ffmpegcolorspace", 0);
+			 MMTA_ACUM_ITEM_BEGIN("videoconvert", 0);
 		#endif
 		/* _format_label : I420, RGB888 etc*/
 		debug_log("Start mm_convert_colorspace ");
@@ -764,7 +754,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 			debug_error("ERROR - mm_convert_colorspace");
 		}
 		#if 0 /* def GST_EXT_TIME_ANALYSIS */
-			MMTA_ACUM_ITEM_END("ffmpegcolorspace", 0);
+			MMTA_ACUM_ITEM_END("videoconvert", 0);
 			MMTA_ACUM_ITEM_SHOW_RESULT();
 			MMTA_ACUM_ITEM_SHOW_RESULT_TO(MMTA_SHOW_FILE);
 			MMTA_RELEASE ();
@@ -774,6 +764,9 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 		pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height, pImgp_info->output_format_label, pImgp_info->output_stride, pImgp_info->output_elevation, pImgp_info->angle);
 		ret = MM_ERROR_IMAGE_INVALID_VALUE;
 	}
+
+	GSTCS_FREE(argv);
+	GSTCS_FREE(argc)
 
 	GSTCS_FREE(input_format->format_label);
 	GSTCS_FREE(input_format->colorspace);

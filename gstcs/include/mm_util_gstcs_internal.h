@@ -30,7 +30,6 @@ extern "C" {
 #include <gst/gst.h>
 #include <gst/gstbuffer.h>
 #include <gst/app/gstappsrc.h>
-#include <gst/app/gstappbuffer.h>
 #include <gst/app/gstappsink.h>
 #include "mm_util_gstcs.h"
 #include "mm_log.h"

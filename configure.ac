@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([libmm-imgp-gstcs],[0.1])
+AC_INIT([libmm-imgp-gstcs],[0.5])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
@@ -43,11 +43,11 @@ PKG_CHECK_MODULES(GLIB, glib-2.0)
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
-PKG_CHECK_MODULES(GST, gstreamer-0.10)
+PKG_CHECK_MODULES(GST, gstreamer-1.0)
 AC_SUBST(GST_CFLAGS)
 AC_SUBST(GST_LIBS)
 
-PKG_CHECK_MODULES(GSTAPP, gstreamer-app-0.10)
+PKG_CHECK_MODULES(GSTAPP, gstreamer-app-1.0)
 AC_SUBST(GSTAPP_CFLAGS)
 AC_SUBST(GSTAPP_LIBS)
 
