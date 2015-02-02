@@ -426,6 +426,7 @@ _mm_set_input_image_format_s_struct(imgp_info_s* pImgp_info) /* char* __format_l
 	image_format_s* __format = NULL;
 
 	__format=(image_format_s*)malloc(sizeof(image_format_s));
+	memset(__format, 0, sizeof(image_format_s));
 
 	__format->format_label = (char *)malloc(sizeof(char) * IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
@@ -461,6 +462,7 @@ _mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info)
 	image_format_s* __format = NULL;
 
 	__format=(image_format_s*)malloc(sizeof(image_format_s));
+	memset(__format, 0, sizeof(image_format_s));
 
 	__format->format_label = (char *)malloc(sizeof(char) * IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
@@ -633,6 +635,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, image_format_s* input_form
 			}
 		}
 		gst_object_unref (pGstreamer_s->pipeline);
+		g_free(GST_BUFFER_MALLOCDATA(pGstreamer_s->output_buffer));
 		pGstreamer_s->output_buffer = NULL;
 		g_free (pGstreamer_s);
 
@@ -710,8 +713,8 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 	input_format= _mm_set_input_image_format_s_struct(pImgp_info);
 	output_format= _mm_set_output_image_format_s_struct(pImgp_info);
 
-	pImgp_info->output_stride = output_format->stride;
-	pImgp_info->output_elevation = output_format->elevation;
+	pImgp_info->output_stride = output_format->width;
+	pImgp_info->output_elevation = output_format->height;
 
 	debug_log("mm_check_resize_format&&mm_check_rotate_format ");
 
@@ -756,7 +759,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info)
 		}else if (ret != MM_ERROR_NONE) {
 			debug_error("ERROR - mm_convert_colorspace");
 		}
-	}else {
+	} else {
 		debug_error("Error - Check your input / ouput image input_format_label: %s src_width: %d src_height: %d output_format_label: %s output_stride: %d output_elevation: %d angle: %d ",
 		pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height, pImgp_info->output_format_label, pImgp_info->output_stride, pImgp_info->output_elevation, pImgp_info->angle);
 		ret = MM_ERROR_IMAGE_INVALID_VALUE;

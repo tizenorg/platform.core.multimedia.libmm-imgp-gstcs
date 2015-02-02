@@ -2,7 +2,7 @@
 Name:       libmm-imgp-gstcs
 Summary:    Multimedia Framework Utility Library
 Version:    0.4
-Release:    14
+Release:    15
 Group:      System/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -11,8 +11,11 @@ BuildRequires:  pkgconfig(mm-common)
 BuildRequires:  pkgconfig(mm-log)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(gstreamer-1.0)
-BuildRequires:  pkgconfig(gstreamer-plugins-base-1.0)
 BuildRequires:  pkgconfig(gmodule-2.0)
+BuildRequires:  pkgconfig(gstreamer-app-1.0)
+BuildRequires:  pkgconfig(gstreamer-video-1.0)
+BuildRequires:  pkgconfig(gstreamer-plugins-base-1.0)
+BuildRequires:  pkgconfig(gstreamer-pbutils-1.0)
 
 
 %description
