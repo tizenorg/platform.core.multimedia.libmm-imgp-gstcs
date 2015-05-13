@@ -127,7 +127,7 @@ mm_setup_image_size(const char* image_format_label, int width, int height);
 */
 
 int
-mm_imgp(imgp_info_s* pImgp_info, imgp_type_e _imgp_type_e);
+mm_imgp(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst, imgp_type_e _imgp_type_e);
 
 #ifdef __cplusplus__
 };
