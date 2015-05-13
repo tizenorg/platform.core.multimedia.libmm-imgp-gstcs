@@ -82,12 +82,10 @@ typedef enum
  */
 typedef struct _imgp_info_s
 {
-	unsigned char *src;
 	char *input_format_label;
 	mm_util_img_format_e src_format;
 	unsigned int src_width;
 	unsigned int src_height;
-	unsigned char *dst;
 	char *output_format_label;
 	mm_util_img_format_e dst_format;
 	unsigned int dst_width;
@@ -127,7 +125,7 @@ mm_setup_image_size(const char* image_format_label, int width, int height);
 */
 
 int
-mm_imgp(imgp_info_s* pImgp_info, imgp_type_e _imgp_type_e);
+mm_imgp(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst, imgp_type_e _imgp_type_e);
 
 #ifdef __cplusplus__
 };
