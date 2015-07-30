@@ -1,7 +1,7 @@
 #sbs-git:slp/pkgs/l/libmm-imgp-gstcs libmm-imgp-gstcs 0.1 62b62e6d483557fc5750d1b4986e9a98323f1194
 Name:       libmm-imgp-gstcs
 Summary:    Multimedia Framework Utility Library
-Version:    0.4
+Version:    0.5
 Release:    16
 Group:      System/Libraries
 License:    Apache-2.0
@@ -36,6 +36,9 @@ cp %{SOURCE1001} .
 %build
 ./autogen.sh
 
+export CFLAGS+=" -Wextra -Wno-array-bounds"
+export CFLAGS+=" -Wno-ignored-qualifiers -Wno-unused-parameter -Wshadow"
+export CFLAGS+=" -Wwrite-strings -Wswitch-default"
 CFLAGS="$CFLAGS -DEXPORT_API=\"__attribute__((visibility(\\\"default\\\")))\" -D_MM_PROJECT_FLOATER" \
 LDFLAGS+="-Wl,--rpath=%{_libdir} -Wl,--hash-style=both -Wl,--as-needed" \
 %configure

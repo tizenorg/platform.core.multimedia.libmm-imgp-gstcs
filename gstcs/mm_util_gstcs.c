@@ -28,6 +28,8 @@
 #define MM_UTIL_ROUND_UP_8(num) (((num)+7)&~7)
 #define MM_UTIL_ROUND_UP_16(num) (((num)+15)&~15)
 
+#define MAX_GET_STATE_COUNT 2000
+
 #define setup_image_size_I420(width, height) { \
 	int size=0; \
 	size = (MM_UTIL_ROUND_UP_4 (width) * MM_UTIL_ROUND_UP_2 (height) + MM_UTIL_ROUND_UP_8 (width) * MM_UTIL_ROUND_UP_2 (height) /2); \
@@ -107,56 +109,12 @@ _mm_sink_sample (GstElement * appsink, gpointer user_data)
 	} else {
 		debug_error("ERROR -Input Prepare Buffer! Check createoutput buffer function");
 	}
+
+	pGstreamer_s->outbuf_available = TRUE;
+
 	gst_buffer_ref (pGstreamer_s->output_buffer); /* when you want to avoid flushing */
 	gst_sample_unref(_sample);
 }
-
-static void
-_mm_sink_preroll (GstElement * appsink, gpointer user_data)
-{
-	GstSample *_sample = NULL;
-	GstBuffer *_buf=NULL;
-	gstreamer_s * pGstreamer_s = (gstreamer_s*) user_data;
-	_buf = gst_app_sink_pull_preroll((GstAppSink*)appsink);
-
-	pGstreamer_s->output_buffer = _buf;
-	/* pGstreamer_s->output_image_format_s->caps = GST_BUFFER_CAPS(_buf); */
-	if(pGstreamer_s->output_buffer != NULL) {
-		GstMapInfo mapinfo = GST_MAP_INFO_INIT;
-		gst_buffer_map(pGstreamer_s->output_buffer, &mapinfo, GST_MAP_READ);
-		debug_log("Create Output Buffer: GST_BUFFER_DATA: %p\t GST_BUFFER_SIZE: %d", mapinfo.data, mapinfo.size);
-		gst_buffer_unmap(pGstreamer_s->output_buffer, &mapinfo);
-	} else {
-		debug_error("ERROR -Input Prepare Buffer! Check createoutput buffer function");
-	}
-
-	gst_buffer_ref (pGstreamer_s->output_buffer); /* when you want to avoid flushings */
-	gst_sample_unref(_sample);
-}
-
-static gboolean
-_mm_on_sink_message (GstBus * bus, GstMessage * message, gstreamer_s * pGstreamer_s)
-{
-	switch (GST_MESSAGE_TYPE (message)) {
-		case GST_MESSAGE_EOS:
-			debug_log("Finished playback\n"); /* g_main_loop_quit (pGstreamer_s->loop); */
-			break;
-		case GST_MESSAGE_ERROR:
-			debug_error("Received error\n"); /* g_main_loop_quit (pGstreamer_s->loop); */
-			break;
-		case GST_MESSAGE_STATE_CHANGED:
-			debug_log("[%s] %s(%d) \n", GST_MESSAGE_SRC_NAME(message), GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_TYPE(message));
-			break;
-		case GST_MESSAGE_STREAM_STATUS:
-			debug_log("[%s] %s(%d) \n", GST_MESSAGE_SRC_NAME(message), GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_TYPE(message));
-			break;
-		default:
-			debug_log("[%s] %s(%d) \n", GST_MESSAGE_SRC_NAME(message), GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_TYPE(message));
-			break;
-	}
-	return TRUE;
-}
-
 
 static int
 _mm_create_pipeline( gstreamer_s* pGstreamer_s)
@@ -182,7 +140,7 @@ _mm_create_pipeline( gstreamer_s* pGstreamer_s)
 		debug_error("videoscale could not be created. Exiting.\n");
 		ret = MM_ERROR_IMAGE_INVALID_VALUE;
 	}
-	pGstreamer_s->videoflip=gst_element_factory_make( "videoflip", "flip" );
+	pGstreamer_s->videoflip=gst_element_factory_make("videoflip", "flip");
 	if (!pGstreamer_s->videoflip) {
 		debug_error("videoflip could not be created. Exiting.\n");
 		ret = MM_ERROR_IMAGE_INVALID_VALUE;
@@ -192,6 +150,7 @@ _mm_create_pipeline( gstreamer_s* pGstreamer_s)
 		debug_error("appsink could not be created. Exiting.\n");
 		ret = MM_ERROR_IMAGE_INVALID_VALUE;
 	}
+	pGstreamer_s->outbuf_available = FALSE;
 
 	return ret;
 }
@@ -306,9 +265,9 @@ _mm_set_image_format_s_capabilities(image_format_s* __format) /*_format_label: I
 		|| strcmp(__format->format_label,"YV12") == 0
 		|| strcmp(__format->format_label,"NV12") == 0
 		|| strcmp(__format->format_label,"UYVY") == 0) {
-			strcpy(_format_name, __format->format_label);
+			strncpy(_format_name, __format->format_label, sizeof(GST_VIDEO_FORMATS_ALL)-1);
 		}else if(strcmp(__format->format_label,"YUYV") == 0) {
-			strcpy(_format_name, "YVYU");
+			strncpy(_format_name, "YVYU", sizeof(GST_VIDEO_FORMATS_ALL)-1);
 		}
 
 		__format->caps = gst_caps_new_simple ("video/x-raw",
@@ -509,6 +468,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 	GstBus *bus = NULL;
 	GstStateChangeReturn ret_state;
 	int ret = MM_ERROR_NONE;
+	int i = 0;
 
 	if(src== NULL || dst == NULL) {
 		debug_error("src || dst is NULL");
@@ -521,11 +481,11 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 		debug_error("ERROR - mm_create_pipeline ");
 	}
 
+
 	/* Make appsink emit the "new-preroll" and "new-sample" signals. This option is by default disabled because signal emission is expensive and unneeded when the application prefers to operate in pull mode. */
 	gst_app_sink_set_emit_signals ((GstAppSink*)pGstreamer_s->appsink, TRUE);
 
 	bus = gst_pipeline_get_bus (GST_PIPELINE (pGstreamer_s->pipeline)); /* GST_PIPELINE (pipeline)); */
-	/* gst_bus_add_watch (bus, (GstBusFunc) _mm_on_sink_message, pGstreamer_s); thow to appplicaton */
 	gst_object_unref(bus);
 
 	debug_log("Start mm_push_buffer_into_pipeline");
@@ -549,30 +509,34 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 	debug_log("Start GST_STATE_PLAYING");
 	ret_state = gst_element_set_state (pGstreamer_s->pipeline, GST_STATE_PLAYING);
 	debug_log("End GST_STATE_PLAYING ret_state: %d", ret_state);
-	ret_state = gst_element_get_state (pGstreamer_s->pipeline, NULL, NULL, GST_CLOCK_TIME_NONE);
-	debug_log("Success Get GST_STATE_PLAYING ret_state: %d", ret_state);
-	#if 0
-	/* Conecting to the new-sample signal emited by the appsink*/
-	debug_log("Start G_CALLBACK (mm_sink_buffer)");
-	g_signal_connect (pGstreamer_s->appsink, "new-sample", G_CALLBACK (_mm_sink_buffer), pGstreamer_s);
-	debug_log("End G_CALLBACK (mm_sink_buffer)");
-	#endif
-	if(ret_state == 1) {
-		debug_log("GST_STATE_PLAYING ret = %d( GST_STATE_CHANGE_SUCCESS)", ret_state);
-	}else if( ret_state == 2) {
-		debug_log("GST_STATE_PLAYING ret = %d( GST_STATE_CHANGE_ASYNC)", ret_state);
+
+	do {
+		ret_state = gst_element_get_state (pGstreamer_s->pipeline, NULL, NULL, 10*GST_MSECOND);
+		debug_error("gst_element_get_state ret_state: %d [%d, %d]", ret_state, ++i, pGstreamer_s->outbuf_available);
+		 if ((ret_state == GST_STATE_CHANGE_SUCCESS) && (pGstreamer_s->outbuf_available)) {
+		 	debug_log("available output buffer & success state chnage");
+		 	break;
+		 }
+	} while (i < MAX_GET_STATE_COUNT);
+
+	if (i == MAX_GET_STATE_COUNT) {
+		debug_error("Fail GST_STATE_CHANGE");
+		gst_object_unref (pGstreamer_s->pipeline);
+		g_free (pGstreamer_s);
+
+		return MM_ERROR_IMAGE_INVALID_VALUE;
 	}
 
 	debug_log("Sucess GST_STATE_CHANGE");
 
 	/* error */
-	if (ret_state == 0) 	{
+	if (ret_state == GST_STATE_CHANGE_FAILURE) {
 		debug_error("GST_STATE_CHANGE_FAILURE");
+		gst_object_unref (pGstreamer_s->pipeline);
+		g_free (pGstreamer_s);
+
 		return MM_ERROR_IMAGE_INVALID_VALUE;
 	}else {
-		#if 0
-			g_main_loop_run (pGstreamer_s->loop);
-		#endif
 		debug_log("Set GST_STATE_NULL");
 
 		/*GST_STATE_NULL*/
@@ -583,15 +547,15 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 
 		ret_state = gst_element_get_state (pGstreamer_s->pipeline, NULL, NULL, GST_CLOCK_TIME_NONE);
 
-		if(ret_state == 1) {
+		if(ret_state == GST_STATE_CHANGE_SUCCESS) {
 			debug_log("GST_STATE_NULL ret_state = %d (GST_STATE_CHANGE_SUCCESS)\n", ret_state);
-		}else if( ret_state == 2) {
+		}else if( ret_state == GST_STATE_CHANGE_ASYNC) {
 			debug_log("GST_STATE_NULL ret_state = %d (GST_STATE_CHANGE_ASYNC)\n", ret_state);
 		}
 
 		debug_log("Success gst_element_get_state\n");
 
-		if (ret_state == 0) {
+		if (ret_state == GST_STATE_CHANGE_FAILURE) {
 			debug_error("GST_STATE_CHANGE_FAILURE");
 		}else {
 			if(pGstreamer_s->output_buffer != NULL) {
@@ -609,11 +573,13 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 				debug_log("pGstreamer_s->output_buffer is NULL");
 			}
 		}
+		gst_buffer_unref (pGstreamer_s->output_buffer);
+		debug_log("unref output buffer");
 		gst_object_unref (pGstreamer_s->pipeline);
 		pGstreamer_s->output_buffer = NULL;
 		g_free (pGstreamer_s);
 
-		debug_log("End gstreamer processing \n");
+		debug_log("End gstreamer processing");
 	}
 	debug_log("dst: %p", dst);
 	return ret;

@@ -56,6 +56,7 @@ typedef struct _gstreamer_s
 	GstElement *videoflip;
 	GstElement *appsink;
 	GstBuffer *output_buffer;
+	gboolean outbuf_available;
 } gstreamer_s;
 
 #ifdef __cplusplus
