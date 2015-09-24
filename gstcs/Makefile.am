@@ -16,7 +16,7 @@ libmmutil_imgp_gstcs_la_CFLAGS = -I$(srcdir)/include \
                              $(GST_PLUGIN_BASE_CFLAGS) \
                              $(GST_INTERFACE_CFLAGS) \
                              $(GSTPBUTILS_CFLAGS) \
-                             $(MMLOG_CFLAGS) -DMMF_LOG_OWNER=0x0100 -DMMF_DEBUG_PREFIX=\"MMF-IMAGE\"
+                             $(DLOG_CFLAGS)
 
 libmmutil_imgp_gstcs_la_LIBADD = $(MMCOMMON_LIBS) \
 			    $(GLIB_LIBS) \
@@ -26,4 +26,4 @@ libmmutil_imgp_gstcs_la_LIBADD = $(MMCOMMON_LIBS) \
                             $(GST_PLUGIN_BASE_LIBS) \
                             $(GST_INTERFACE_LIBS) \
                             $(GSTPBUTILS_LIBS) \
-			    $(MMLOG_LIBS)
+			    $(DLOG_LIBS)
