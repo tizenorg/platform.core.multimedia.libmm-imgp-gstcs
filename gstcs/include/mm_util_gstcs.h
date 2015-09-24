@@ -92,19 +92,9 @@ typedef struct _imgp_info_s
 	unsigned int dst_height;
 	unsigned int output_stride;
 	unsigned int output_elevation;
+	unsigned int buffer_size;
 	mm_util_img_rotate_type_e angle;
 } imgp_info_s;
-
-/**
- *
- * @remark 	image size
- *
- * @param	input_format_label									 [in]		"filename.yuv" or  "filename,rgb" etc
- * @param	input_width, input_height, output_width, output_height	 [in]		 int value
- * @return  	This function returns image size
-*/
-static int
-mm_setup_image_size(const char* image_format_label, int width, int height);
 
 /**
  *
