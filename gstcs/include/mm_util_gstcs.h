@@ -77,6 +77,16 @@ typedef enum
 	MM_UTIL_IMG_FMT_NUM,            /**< Number of image formats */
 } mm_util_img_format_e;
 
+typedef enum
+{
+	GSTCS_ERROR_NONE =              TIZEN_ERROR_NONE,                /**< Successful */
+	GSTCS_ERROR_INVALID_PARAMETER = TIZEN_ERROR_INVALID_PARAMETER,   /**< Invalid parameter */
+	GSTCS_ERROR_OUT_OF_MEMORY =     TIZEN_ERROR_OUT_OF_MEMORY,       /**< Out of memory */
+	GSTCS_ERROR_INVALID_OPERATION = TIZEN_ERROR_INVALID_OPERATION,   /**< Internal error */
+	GSTCS_ERROR_NOT_SUPPORTED_FORMAT = TIZEN_ERROR_IMAGE_UTIL | 0x01,   /**< Not supported format */
+	GSTCS_ERROR_NOT_SUPPORTED = TIZEN_ERROR_NOT_SUPPORTED          /**< Not supported */
+} mm_util_gstcs_error_e;
+
 /**
  * Image Process Info for dlopen
  */
@@ -92,19 +102,9 @@ typedef struct _imgp_info_s
 	unsigned int dst_height;
 	unsigned int output_stride;
 	unsigned int output_elevation;
+	unsigned int buffer_size;
 	mm_util_img_rotate_type_e angle;
 } imgp_info_s;
-
-/**
- *
- * @remark 	image size
- *
- * @param	input_format_label									 [in]		"filename.yuv" or  "filename,rgb" etc
- * @param	input_width, input_height, output_width, output_height	 [in]		 int value
- * @return  	This function returns image size
-*/
-static int
-mm_setup_image_size(const char* image_format_label, int width, int height);
 
 /**
  *

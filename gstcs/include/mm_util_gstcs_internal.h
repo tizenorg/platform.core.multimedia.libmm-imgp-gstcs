@@ -33,6 +33,46 @@ extern "C" {
 #include <gst/app/gstappsink.h>
 #include "mm_util_gstcs.h"
 #include "mm_log.h"
+
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+
+#define LOG_TAG "MM_UTIL_GSTCS"
+
+#define FONT_COLOR_RESET    "\033[0m"
+#define FONT_COLOR_RED      "\033[31m"
+
+#define gstcs_debug(fmt, arg...) do { \
+		LOGD(FONT_COLOR_RESET""fmt"", ##arg);     \
+	} while (0)
+
+#define gstcs_info(fmt, arg...) do { \
+		LOGI(FONT_COLOR_RESET""fmt"", ##arg);     \
+	} while (0)
+
+#define gstcs_warn(fmt, arg...) do { \
+		LOGW(FONT_COLOR_RESET""fmt"", ##arg);     \
+	} while (0)
+
+#define gstcs_error(fmt, arg...) do { \
+		LOGE(FONT_COLOR_RED""fmt""FONT_COLOR_RESET, ##arg);     \
+	} while (0)
+
+#define gstcs_retm_if(expr, fmt, arg...) do { \
+		if(expr) { \
+			LOGE(FONT_COLOR_RED""fmt""FONT_COLOR_RESET, ##arg);     \
+			return; \
+		} \
+	} while (0)
+
+#define gstcs_retvm_if(expr, val, fmt, arg...) do { \
+		if(expr) { \
+			LOGE(FONT_COLOR_RED""fmt""FONT_COLOR_RESET, ##arg);     \
+			return (val); \
+		} \
+	} while (0)
+
 #define GSTCS_FREE(src) { if(src) {g_free(src); src = NULL;} }
 typedef struct _image_format_s
 {
@@ -49,6 +89,7 @@ typedef struct _image_format_s
 typedef struct _gstreamer_s
 {
 	GMainLoop *loop;
+	GMainContext *context;
 	GstElement *pipeline;
 	GstElement *appsrc;
 	GstElement *colorspace;
@@ -56,8 +97,19 @@ typedef struct _gstreamer_s
 	GstElement *videoflip;
 	GstElement *appsink;
 	GstBuffer *output_buffer;
-	gboolean outbuf_available;
 } gstreamer_s;
+
+/**
+ *
+ * @remark     image size
+ *
+ * @param      input_format_label                                                                       [in]           "filename.yuv" or  "filename,rgb" etc
+ * @param      input_width, input_height, output_width, output_height   [in]            int value
+ * @return     This function returns image size
+*/
+static int
+mm_setup_image_size(const char* image_format_label, int width, int height);
+
 
 #ifdef __cplusplus
 }
