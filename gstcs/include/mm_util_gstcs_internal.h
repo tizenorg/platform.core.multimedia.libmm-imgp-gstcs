@@ -26,13 +26,13 @@
 extern "C" {
 #endif
 
+#include <dlog.h>
 #include <glib.h>
 #include <gst/gst.h>
 #include <gst/gstbuffer.h>
 #include <gst/app/gstappsrc.h>
 #include <gst/app/gstappsink.h>
 #include "mm_util_gstcs.h"
-#include "mm_log.h"
 
 #ifdef LOG_TAG
 #undef LOG_TAG
