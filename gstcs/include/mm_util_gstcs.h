@@ -29,6 +29,7 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tizen.h>
 
 #define IMAGE_FORMAT_LABEL_BUFFER_SIZE 9
 
@@ -76,6 +77,18 @@ typedef enum
 	MM_UTIL_IMG_FMT_NV12_TILED,     /**< Customized color format in s5pc110 */
 	MM_UTIL_IMG_FMT_NUM,            /**< Number of image formats */
 } mm_util_img_format_e;
+
+#if 1
+typedef enum
+{
+	MM_UTIL_ERROR_NONE =              TIZEN_ERROR_NONE,                /**< Successful */
+	MM_UTIL_ERROR_INVALID_PARAMETER = TIZEN_ERROR_INVALID_PARAMETER,   /**< Invalid parameter */
+	MM_UTIL_ERROR_OUT_OF_MEMORY =     TIZEN_ERROR_OUT_OF_MEMORY,       /**< Out of memory */
+	MM_UTIL_ERROR_NO_SUCH_FILE  = TIZEN_ERROR_NO_SUCH_FILE,			  /**< No such file */
+	MM_UTIL_ERROR_INVALID_OPERATION = TIZEN_ERROR_INVALID_OPERATION,   /**< Internal error */
+	MM_UTIL_ERROR_NOT_SUPPORTED_FORMAT = TIZEN_ERROR_IMAGE_UTIL | 0x01,   /**< Not supported format */
+} mm_util_error_e;
+#endif
 
 /**
  * Image Process Info for dlopen

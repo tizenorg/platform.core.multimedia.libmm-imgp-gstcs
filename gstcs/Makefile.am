@@ -9,7 +9,6 @@ noinst_HEADERS = include/mm_util_gstcs.h \
 libmmutil_imgp_gstcs_la_SOURCES = mm_util_gstcs.c
 	
 libmmutil_imgp_gstcs_la_CFLAGS = -I$(srcdir)/include \
- 	                     $(MMCOMMON_CFLAGS) \
 			     $(GLIB_CFLAGS) \
 			     $(GST_CFLAGS) \
 			     $(GSTAPP_CFLAGS)  \
@@ -18,8 +17,7 @@ libmmutil_imgp_gstcs_la_CFLAGS = -I$(srcdir)/include \
                              $(GSTPBUTILS_CFLAGS) \
                              $(DLOG_CFLAGS)
 
-libmmutil_imgp_gstcs_la_LIBADD = $(MMCOMMON_LIBS) \
-			    $(GLIB_LIBS) \
+libmmutil_imgp_gstcs_la_LIBADD = $(GLIB_LIBS) \
 			    $(GST_LIBS) \
 			    $(GSTAPP_LIBS) \
                             $(GST_VIDEO_LIBS) \
