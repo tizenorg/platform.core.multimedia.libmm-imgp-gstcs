@@ -1,13 +1,12 @@
 #sbs-git:slp/pkgs/l/libmm-imgp-gstcs libmm-imgp-gstcs 0.1 62b62e6d483557fc5750d1b4986e9a98323f1194
 Name:       libmm-imgp-gstcs
 Summary:    Multimedia Framework Utility Library
-Version:    0.6
+Version:    0.7
 Release:    16
 Group:      System/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1001: 	libmm-imgp-gstcs.manifest
-BuildRequires:  pkgconfig(mm-common)
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(gstreamer-1.0)
