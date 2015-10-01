@@ -77,6 +77,16 @@ typedef enum
 	MM_UTIL_IMG_FMT_NUM,            /**< Number of image formats */
 } mm_util_img_format_e;
 
+typedef enum
+{
+	GSTCS_ERROR_NONE =              0,       /**< Successful */
+	GSTCS_ERROR_INVALID_PARAMETER = -1,      /**< Invalid parameter */
+	GSTCS_ERROR_OUT_OF_MEMORY = -2,          /**< Out of memory */
+	GSTCS_ERROR_NO_SUCH_FILE  = -3,		   /**< No such file */
+	GSTCS_ERROR_INVALID_OPERATION = -4,      /**< Internal error */
+	GSTCS_ERROR_NOT_SUPPORTED_FORMAT = -5,   /**< Not supported format */
+} gstcs_img_error_e;
+
 /**
  * Image Process Info for dlopen
  */

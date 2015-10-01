@@ -19,10 +19,9 @@
  *
  */
 #include "mm_util_gstcs_internal.h"
-#include <mm_debug.h>
 #include <gst/check/gstcheck.h>
 #include <gst/video/video-format.h>
-#include <mm_error.h>
+
 #define MM_UTIL_ROUND_UP_2(num) (((num)+1)&~1)
 #define MM_UTIL_ROUND_UP_4(num) (((num)+3)&~3)
 #define MM_UTIL_ROUND_UP_8(num) (((num)+7)&~7)
@@ -117,36 +116,36 @@ _mm_get_byte_per_pixcel(const char *__format_label)
 static int
 _mm_create_pipeline( gstreamer_s* pGstreamer_s)
 {
-	int ret = MM_ERROR_NONE;
+	int ret = GSTCS_ERROR_NONE;
 	pGstreamer_s->pipeline= gst_pipeline_new ("videoconvert");
 	if (!pGstreamer_s->pipeline) {
 		gstcs_error("pipeline could not be created. Exiting.\n");
-		ret = MM_ERROR_IMAGE_INVALID_VALUE;
+		ret = GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	pGstreamer_s->appsrc= gst_element_factory_make("appsrc","appsrc");
 	if (!pGstreamer_s->appsrc) {
 		gstcs_error("appsrc could not be created. Exiting.\n");
-		ret = MM_ERROR_IMAGE_INVALID_VALUE;
+		ret = GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	pGstreamer_s->colorspace=gst_element_factory_make("videoconvert","colorspace");
 	if (!pGstreamer_s->colorspace) {
 		gstcs_error("colorspace could not be created. Exiting.\n");
-		ret = MM_ERROR_IMAGE_INVALID_VALUE;
+		ret = GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	pGstreamer_s->videoscale=gst_element_factory_make("videoscale", "scale");
 	if (!pGstreamer_s->videoscale) {
 		gstcs_error("videoscale could not be created. Exiting.\n");
-		ret = MM_ERROR_IMAGE_INVALID_VALUE;
+		ret = GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	pGstreamer_s->videoflip=gst_element_factory_make("videoflip", "flip");
 	if (!pGstreamer_s->videoflip) {
 		gstcs_error("videoflip could not be created. Exiting.\n");
-		ret = MM_ERROR_IMAGE_INVALID_VALUE;
+		ret = GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	pGstreamer_s->appsink=gst_element_factory_make("appsink","appsink");
 	if (!pGstreamer_s->appsink) {
 		gstcs_error("appsink could not be created. Exiting.\n");
-		ret = MM_ERROR_IMAGE_INVALID_VALUE;
+		ret = GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	return ret;
 }
@@ -509,11 +508,11 @@ _mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info, const image_format
 static int
 _mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, unsigned char *src, gstreamer_s * pGstreamer_s)
 {
-	int ret = MM_ERROR_NONE;
+	int ret = GSTCS_ERROR_NONE;
 
 	if(pGstreamer_s->pipeline == NULL) {
 		gstcs_error("pipeline is NULL\n");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 
 	gsize data_size = mm_setup_image_size(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height);
@@ -521,7 +520,7 @@ _mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, unsigned char *src, gstre
 
 	if(gst_buf==NULL) {
 		gstcs_error("buffer is NULL\n");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 
 	gst_app_src_push_buffer (GST_APP_SRC (pGstreamer_s->appsrc), gst_buf); /* push buffer to pipeline */
@@ -531,7 +530,7 @@ _mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, unsigned char *src, gstre
 static int
 _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *output_format, unsigned char *src, gstreamer_s * pGstreamer_s)
 {
-	int ret = MM_ERROR_NONE;
+	int ret = GSTCS_ERROR_NONE;
 	GstBuffer *gst_buf = NULL;
 	unsigned int src_size = 0;
 	unsigned char *data = NULL;
@@ -540,7 +539,7 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 
 	if(pGstreamer_s->pipeline == NULL) {
 		gstcs_error("pipeline is NULL\n");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 
 	gstcs_debug("stride: %d, elevation: %d", stride, elevation);
@@ -555,7 +554,7 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 	data =(unsigned char *) g_malloc (src_size);
 	if(data==NULL) {
 		gstcs_error("app_buffer is NULL\n");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	for (y = 0; y < (unsigned int)(input_format->height); y++) {
 		guint8 *pLine = (guint8 *) &(src[src_row * y]);
@@ -575,7 +574,7 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 
 	if(gst_buf==NULL) {
 		gstcs_error("buffer is NULL\n");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 
 	gst_app_src_push_buffer (GST_APP_SRC (pGstreamer_s->appsrc), gst_buf); /* push buffer to pipeline */
@@ -587,16 +586,16 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 {
 	GstBus *bus = NULL;
 	GstStateChangeReturn ret_state;
-	int ret = MM_ERROR_NONE;
+	int ret = GSTCS_ERROR_NONE;
 
 	if(src== NULL || dst == NULL) {
 		gstcs_error("src || dst is NULL");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 
 	/*create pipeline*/
 	ret = _mm_create_pipeline(pGstreamer_s);
-	if(ret != MM_ERROR_NONE) {
+	if(ret != GSTCS_ERROR_NONE) {
 		gstcs_error("ERROR - mm_create_pipeline ");
 	}
 
@@ -605,7 +604,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 		gstcs_error("ERROR - g_main_context_new ");
 		gst_object_unref (pGstreamer_s->pipeline);
 		g_free (pGstreamer_s);
-		return MM_ERROR_IMAGE_INTERNAL;
+		return GSTCS_ERROR_INVALID_OPERATION;
 	}
 	pGstreamer_s->loop = g_main_loop_new (pGstreamer_s->context, FALSE);
 	if (pGstreamer_s->loop == NULL) {
@@ -613,7 +612,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 		gst_object_unref (pGstreamer_s->pipeline);
 		g_main_context_unref(pGstreamer_s->context);
 		g_free (pGstreamer_s);
-		return MM_ERROR_IMAGE_INTERNAL;
+		return GSTCS_ERROR_INVALID_OPERATION;
 	}
 
 	g_main_context_push_thread_default(pGstreamer_s->context);
@@ -633,7 +632,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 		gstcs_debug("Start mm_push_buffer_into_pipeline");
 		ret = _mm_push_buffer_into_pipeline(pImgp_info, src, pGstreamer_s);
 	}
-	if(ret != MM_ERROR_NONE) {
+	if(ret != GSTCS_ERROR_NONE) {
 		gstcs_error("ERROR - mm_push_buffer_into_pipeline ");
 		gst_object_unref (pGstreamer_s->pipeline);
 		g_main_context_unref(pGstreamer_s->context);
@@ -705,7 +704,7 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 				g_main_context_unref(pGstreamer_s->context);
 				g_main_loop_unref(pGstreamer_s->loop);
 				g_free (pGstreamer_s);
-				return MM_ERROR_IMAGE_INTERNAL;
+				return GSTCS_ERROR_INVALID_OPERATION;
 			}
 			gstcs_debug("pGstreamer_s->output_buffer: 0x%2x\n", pGstreamer_s->output_buffer);
 			memcpy(dst, mapinfo.data, buffer_size);
@@ -778,7 +777,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 {
 	image_format_s* input_format=NULL, *output_format=NULL;
 	gstreamer_s* pGstreamer_s;
-	int ret = MM_ERROR_NONE;
+	int ret = GSTCS_ERROR_NONE;
 	static const int max_argc = 50;
 	gint* argc = NULL;
 	gchar** argv = NULL;
@@ -786,12 +785,12 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 
 	if(pImgp_info == NULL) {
 		gstcs_error("imgp_info_s is NULL");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 
 	if(src== NULL || dst == NULL) {
 		gstcs_error("src || dst is NULL");
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	gstcs_debug("[src %p] [dst %p]", src, dst);
 
@@ -808,7 +807,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 		if (argv != NULL) {
 			free(argv);
 		}
-		return MM_ERROR_IMAGE_INVALID_VALUE;
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
 	memset(argv, 0, sizeof(gchar*) * max_argc);
 	gstcs_debug("memset argv");
@@ -837,7 +836,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 	input_format= _mm_set_input_image_format_s_struct(pImgp_info);
 	if (input_format == NULL) {
 		gstcs_error("memory allocation failed");
-		return MM_ERROR_IMAGE_NO_FREE_SPACE;
+		return GSTCS_ERROR_OUT_OF_MEMORY;
 	}
 	output_format= _mm_set_output_image_format_s_struct(pImgp_info, input_format);
 	if (output_format == NULL) {
@@ -845,16 +844,16 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 		GSTCS_FREE(input_format->format_label);
 		GSTCS_FREE(input_format->colorspace);
 		GSTCS_FREE(input_format);
-		return MM_ERROR_IMAGE_NO_FREE_SPACE;
+		return GSTCS_ERROR_OUT_OF_MEMORY;
 	}
 
 	/* _format_label : I420, RGB888 etc*/
 	gstcs_debug("Start _mm_imgp_gstcs_processing ");
 	ret =_mm_imgp_gstcs_processing(pGstreamer_s, src, dst, input_format, output_format, pImgp_info); /* input: buffer pointer for input image , input image format, input image width, input image height, output: buffer porinter for output image */
 
-	if(ret == MM_ERROR_NONE) {
+	if(ret == GSTCS_ERROR_NONE) {
 		gstcs_debug("End _mm_imgp_gstcs_processing [dst: %p]", dst);
-	}else if (ret != MM_ERROR_NONE) {
+	}else if (ret != GSTCS_ERROR_NONE) {
 		gstcs_error("ERROR - _mm_imgp_gstcs_processing");
 	}
 
