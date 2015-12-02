@@ -611,7 +611,6 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 		gstcs_error("ERROR - g_main_loop_new ");
 		gst_object_unref (pGstreamer_s->pipeline);
 		g_main_context_unref(pGstreamer_s->context);
-		g_free (pGstreamer_s);
 		return GSTCS_ERROR_INVALID_OPERATION;
 	}
 
@@ -637,7 +636,6 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 		gst_object_unref (pGstreamer_s->pipeline);
 		g_main_context_unref(pGstreamer_s->context);
 		g_main_loop_unref(pGstreamer_s->loop);
-		g_free (pGstreamer_s);
 		return ret;
 	}
 	gstcs_debug("End mm_push_buffer_into_pipeline");
@@ -720,7 +718,6 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 	pGstreamer_s->output_buffer = NULL;
 	g_main_context_unref(pGstreamer_s->context);
 	g_main_loop_unref(pGstreamer_s->loop);
-	g_free (pGstreamer_s);
 
 	gstcs_debug("End gstreamer processing");
 	gstcs_debug("dst: %p", dst);
@@ -813,8 +810,9 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 	gstcs_debug("memset argv");
 
 	/* add initial */
-	*argc = 1;
-	argv[0] = g_strdup( "mmutil_gstcs" );
+	*argc = 0;
+	argv[*argc] = (gchar *)g_strdup( "mmutil_gstcs" );
+	(*argc)++;
 	/* check disable registry scan */
 	argv[*argc] = g_strdup("--gst-disable-registry-update");
 	(*argc)++;
@@ -836,6 +834,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 	input_format= _mm_set_input_image_format_s_struct(pImgp_info);
 	if (input_format == NULL) {
 		gstcs_error("memory allocation failed");
+		g_free (pGstreamer_s);
 		return GSTCS_ERROR_OUT_OF_MEMORY;
 	}
 	output_format= _mm_set_output_image_format_s_struct(pImgp_info, input_format);
@@ -844,6 +843,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 		GSTCS_FREE(input_format->format_label);
 		GSTCS_FREE(input_format->colorspace);
 		GSTCS_FREE(input_format);
+		g_free (pGstreamer_s);
 		return GSTCS_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -864,6 +864,7 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 	GSTCS_FREE(output_format->format_label);
 	GSTCS_FREE(output_format->colorspace);
 	GSTCS_FREE(output_format);
+	g_free (pGstreamer_s);
 
 	return ret;
 }
