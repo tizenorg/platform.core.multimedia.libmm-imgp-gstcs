@@ -170,8 +170,6 @@ static void
 _mm_link_pipeline(gstreamer_s* pGstreamer_s, image_format_s* input_format, image_format_s* output_format, int value)
 {
 	/* set property */
-	gst_app_src_set_caps(GST_APP_SRC(pGstreamer_s->appsrc), input_format->caps); /*g_object_set(pGstreamer_s->appsrc, "caps", input_format->caps, NULL);*/
-	gst_app_sink_set_caps(GST_APP_SINK(pGstreamer_s->appsink), output_format->caps); /*g_object_set(pGstreamer_s->appsink, "caps", output_format->caps, NULL); */
 	gst_bin_add_many(GST_BIN(pGstreamer_s->pipeline), pGstreamer_s->appsrc, pGstreamer_s->colorspace, pGstreamer_s->videoscale, pGstreamer_s->videoflip, pGstreamer_s->appsink, NULL);
 	if(!gst_element_link_many(pGstreamer_s->appsrc, pGstreamer_s->colorspace, pGstreamer_s->videoscale, pGstreamer_s->videoflip, pGstreamer_s->appsink, NULL)) {
 		gstcs_error("Fail to link pipeline");
@@ -622,6 +620,9 @@ _mm_imgp_gstcs_processing( gstreamer_s* pGstreamer_s, unsigned char *src, unsign
 	bus = gst_pipeline_get_bus (GST_PIPELINE (pGstreamer_s->pipeline));
 	gst_bus_add_watch (bus, (GstBusFunc) _mm_on_src_message, pGstreamer_s);
 	gst_object_unref(bus);
+
+	gst_app_src_set_caps(GST_APP_SRC(pGstreamer_s->appsrc), input_format->caps);
+	gst_app_sink_set_caps(GST_APP_SINK(pGstreamer_s->appsink), output_format->caps);
 
 	if (((input_format->width != input_format->stride) || (input_format->height != input_format->elevation)) &&
 		((strcmp(input_format->colorspace, "RGB") == 0) || (strcmp(input_format->colorspace, "RGBA") == 0))) {
