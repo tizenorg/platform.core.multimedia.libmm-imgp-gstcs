@@ -49,6 +49,7 @@ typedef enum
 	IMGP_CSC = 0,
 	IMGP_RSZ,
 	IMGP_ROT,
+	IMGP_MAX,
 } imgp_type_e;
 
 typedef enum
