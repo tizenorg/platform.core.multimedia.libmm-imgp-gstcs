@@ -116,7 +116,7 @@ _mm_get_byte_per_pixcel(const char *__format_label)
 static int _mm_create_pipeline(gstreamer_s* pGstreamer_s)
 {
 	int ret = GSTCS_ERROR_NONE;
-	pGstreamer_s->pipeline = gst_pipeline_new("videoconvert");
+	pGstreamer_s->pipeline = gst_pipeline_new("pipeline");
 	if (!pGstreamer_s->pipeline) {
 		gstcs_error("pipeline could not be created. Exiting.\n");
 		ret = GSTCS_ERROR_INVALID_PARAMETER;
@@ -126,7 +126,7 @@ static int _mm_create_pipeline(gstreamer_s* pGstreamer_s)
 		gstcs_error("appsrc could not be created. Exiting.\n");
 		ret = GSTCS_ERROR_INVALID_PARAMETER;
 	}
-	pGstreamer_s->colorspace = gst_element_factory_make("videoconvert" , "colorspace");
+	pGstreamer_s->colorspace = gst_element_factory_make("videoconvert" , "convert");
 	if (!pGstreamer_s->colorspace) {
 		gstcs_error("colorspace could not be created. Exiting.\n");
 		ret = GSTCS_ERROR_INVALID_PARAMETER;
@@ -403,6 +403,36 @@ _mm_set_image_colorspace(image_format_s* __format)
 	}
 }
 
+static int _gstcs_create_image_format(image_format_s **format)
+{
+	int ret = GSTCS_ERROR_NONE;
+	image_format_s *_format = NULL;
+
+	if (format == NULL) {
+		gstcs_error("format is wrong value");
+		return GSTCS_ERROR_INVALID_OPERATION;
+	}
+
+	_format = (image_format_s*)malloc(sizeof(image_format_s));
+	if (_format == NULL) {
+		gstcs_error("memory allocation failed");
+		return GSTCS_ERROR_OUT_OF_MEMORY;
+	}
+	memset(_format, 0, sizeof(image_format_s));
+	*format = _format;
+	
+	return ret;
+}
+
+static void _gstcs_destroy_image_format(image_format_s *format)
+{
+	if (format != NULL) {
+		GSTCS_FREE(format->format_label);
+		GSTCS_FREE(format->colorspace);
+		GSTCS_FREE(format);
+	}
+}
+
 static void
 _mm_round_up_input_image_widh_height(image_format_s* pFormat)
 {
@@ -422,19 +452,19 @@ _mm_round_up_input_image_widh_height(image_format_s* pFormat)
 static image_format_s*
 _mm_set_input_image_format_s_struct(imgp_info_s* pImgp_info) /* char* __format_label, int __width, int __height) */
 {
+	int ret = GSTCS_ERROR_NONE;
 	image_format_s* __format = NULL;
 
-	__format = (image_format_s*)malloc(sizeof(image_format_s));
-	if (__format == NULL) {
-		gstcs_error("memory allocation failed");
+	ret = _gstcs_create_image_format(&__format);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_debug("Error: _gstcs_create_image_format is failed (%d)\n", ret);
 		return NULL;
 	}
-	memset(__format, 0, sizeof(image_format_s));
 
 	__format->format_label = (char *)malloc(sizeof(char) * IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	if (__format->format_label == NULL) {
 		gstcs_error("memory allocation failed");
-		GSTCS_FREE(__format);
+		_gstcs_destroy_image_format(__format);
 		return NULL;
 	}
 	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
@@ -477,19 +507,19 @@ _mm_round_up_output_image_widh_height(image_format_s* pFormat, const image_forma
 static image_format_s*
 _mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info, const image_format_s *input_format)
 {
+	int ret = GSTCS_ERROR_NONE;
 	image_format_s* __format = NULL;
 
-	__format = (image_format_s*)malloc(sizeof(image_format_s));
-	if (__format == NULL) {
-		gstcs_error("memory allocation failed");
+	ret = _gstcs_create_image_format(&__format);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_debug("Error: _gstcs_create_image_format is failed (%d)\n", ret);
 		return NULL;
 	}
-	memset(__format, 0, sizeof(image_format_s));
 
 	__format->format_label = (char *)malloc(sizeof(char) * IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	if (__format->format_label == NULL) {
 		gstcs_error("memory allocation failed");
-		GSTCS_FREE(__format);
+		_gstcs_destroy_image_format(__format);
 		return NULL;
 	}
 	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
@@ -592,33 +622,11 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 	GstStateChangeReturn ret_state;
 	int ret = GSTCS_ERROR_NONE;
 
-	if (src == NULL || dst == NULL) {
-		gstcs_error("src || dst is NULL");
-		return GSTCS_ERROR_INVALID_PARAMETER;
-	}
-
 	/*create pipeline*/
 	ret = _mm_create_pipeline(pGstreamer_s);
 	if (ret != GSTCS_ERROR_NONE) {
 		gstcs_error("ERROR - mm_create_pipeline ");
 	}
-
-	pGstreamer_s->context = g_main_context_new();
-	if (pGstreamer_s->context == NULL) {
-		gstcs_error("ERROR - g_main_context_new ");
-		gst_object_unref(pGstreamer_s->pipeline);
-		g_free(pGstreamer_s);
-		return GSTCS_ERROR_INVALID_OPERATION;
-	}
-	pGstreamer_s->loop = g_main_loop_new(pGstreamer_s->context, FALSE);
-	if (pGstreamer_s->loop == NULL) {
-		gstcs_error("ERROR - g_main_loop_new ");
-		gst_object_unref(pGstreamer_s->pipeline);
-		g_main_context_unref(pGstreamer_s->context);
-		return GSTCS_ERROR_INVALID_OPERATION;
-	}
-
-	g_main_context_push_thread_default(pGstreamer_s->context);
 
 	/* Make appsink emit the "new-preroll" and "new-sample" signals. This option is by default disabled because signal emission is expensive and unneeded when the application prefers to operate in pull mode. */
 	gst_app_sink_set_emit_signals((GstAppSink*)pGstreamer_s->appsink, TRUE);
@@ -641,8 +649,6 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 	if (ret != GSTCS_ERROR_NONE) {
 		gstcs_error("ERROR - mm_push_buffer_into_pipeline ");
 		gst_object_unref(pGstreamer_s->pipeline);
-		g_main_context_unref(pGstreamer_s->context);
-		g_main_loop_unref(pGstreamer_s->loop);
 		return ret;
 	}
 	gstcs_debug("End mm_push_buffer_into_pipeline");
@@ -706,9 +712,6 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 				gst_buffer_unref(pGstreamer_s->output_buffer);
 				gst_object_unref(pGstreamer_s->pipeline);
 				pGstreamer_s->output_buffer = NULL;
-				g_main_context_unref(pGstreamer_s->context);
-				g_main_loop_unref(pGstreamer_s->loop);
-				g_free(pGstreamer_s);
 				return GSTCS_ERROR_INVALID_OPERATION;
 			}
 			gstcs_debug("pGstreamer_s->output_buffer: 0x%2x\n", pGstreamer_s->output_buffer);
@@ -723,8 +726,6 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 	gst_buffer_unref(pGstreamer_s->output_buffer);
 	gst_object_unref(pGstreamer_s->pipeline);
 	pGstreamer_s->output_buffer = NULL;
-	g_main_context_unref(pGstreamer_s->context);
-	g_main_loop_unref(pGstreamer_s->loop);
 
 	gstcs_debug("End gstreamer processing");
 	gstcs_debug("dst: %p", dst);
@@ -776,85 +777,138 @@ mm_setup_image_size(const char* _format_label, int width, int height)
 	return size;
 }
 
-static int
-_mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
+static int _gstcs_create_default_thread(gstreamer_s* gstreamer) {
+	if (gstreamer == NULL) {
+		gstcs_error("ERROR - gstreamer is null ");
+		return GSTCS_ERROR_INVALID_OPERATION;
+	}
+
+	gstreamer->context = g_main_context_new();
+	if (gstreamer->context == NULL) {
+		gstcs_error("ERROR - g_main_context_new ");
+		return GSTCS_ERROR_INVALID_OPERATION;
+	}
+	gstreamer->loop = g_main_loop_new(gstreamer->context, FALSE);
+	if (gstreamer->loop == NULL) {
+		gstcs_error("ERROR - g_main_loop_new ");
+		g_main_context_unref(gstreamer->context);
+		return GSTCS_ERROR_INVALID_OPERATION;
+	}
+
+	g_main_context_push_thread_default(gstreamer->context);
+	return GSTCS_ERROR_NONE;
+}
+
+static int _gstcs_destroy_default_thread(gstreamer_s* gstreamer) {
+	if (gstreamer == NULL) {
+		gstcs_error("ERROR - gstreamer is null ");
+		return GSTCS_ERROR_INVALID_OPERATION;
+	}
+	if (gstreamer->loop != NULL) {
+		g_main_loop_unref(gstreamer->loop);
+	}
+	if (gstreamer->context != NULL) {
+		g_main_context_unref(gstreamer->context);
+	}
+	return GSTCS_ERROR_NONE;
+}
+
+static int _gstcs_init(gstreamer_s** gstreamer)
+{
+	static const int max_argc = 50;
+	gint argc = 0;
+	gchar** argv = NULL;
+	int i = 0;
+	int ret = GSTCS_ERROR_NONE;
+
+	argv = malloc(sizeof(gchar*) * max_argc);
+
+	if (!argv) {
+		gstcs_error("argv is not allocated");
+		return GSTCS_ERROR_OUT_OF_MEMORY;
+	}
+	memset(argv, 0, sizeof(gchar*) * max_argc);
+
+	argv[argc] = g_strdup("mmutil_gstcs");
+	if (argv[argc] == NULL) {
+		gstcs_error("argv[%d] is not allocated", argc);
+		ret = GSTCS_ERROR_OUT_OF_MEMORY;
+	}
+	argc++;
+	/* check disable registry scan */
+	argv[argc] = g_strdup("--gst-disable-registry-update");
+	if (argv[argc] == NULL) {
+		gstcs_error("argv[%d] is not allocated", argc);
+		ret = GSTCS_ERROR_OUT_OF_MEMORY;
+	}
+	argc++;
+	if (ret != GSTCS_ERROR_NONE) {
+		for (i = 0; i < argc; i++) {
+			GSTCS_FREE(argv[i]);
+		}
+		GSTCS_FREE(argv);
+		return ret;
+	}
+
+	gst_init(&argc, &argv);
+
+	*gstreamer = g_new0(gstreamer_s, 1);
+	if (*gstreamer == NULL) {
+		gstcs_error("gstreamer structure is not allocated");
+		ret = GSTCS_ERROR_OUT_OF_MEMORY;
+	}
+
+	for (i = 0; i < argc; i++) {
+		GSTCS_FREE(argv[i]);
+	}
+	GSTCS_FREE(argv);
+	return ret;
+}
+
+static int _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 {
 	image_format_s* input_format = NULL, *output_format = NULL;
 	gstreamer_s* pGstreamer_s;
 	int ret = GSTCS_ERROR_NONE;
-	static const int max_argc = 50;
-	gint* argc = NULL;
-	gchar** argv = NULL;
-	int i = 0;
 
-	if (pImgp_info == NULL) {
-		gstcs_error("imgp_info_s is NULL");
-		return GSTCS_ERROR_INVALID_PARAMETER;
-	}
-
-	if (src == NULL || dst == NULL) {
-		gstcs_error("src || dst is NULL");
-		return GSTCS_ERROR_INVALID_PARAMETER;
-	}
-	gstcs_debug("[src %p] [dst %p]", src, dst);
-
-	argc = malloc(sizeof(int));
-	argv = malloc(sizeof(gchar*) * max_argc);
-
-	if (!argc || !argv) {
-		gstcs_error("argc ||argv is NULL");
-		GSTCS_FREE(input_format);
-		GSTCS_FREE(output_format);
-		if (argc != NULL) {
-			free(argc);
-		}
-		if (argv != NULL) {
-			free(argv);
-		}
-		return GSTCS_ERROR_INVALID_PARAMETER;
-	}
-	memset(argv, 0, sizeof(gchar*) * max_argc);
-	gstcs_debug("memset argv");
-
-	/* add initial */
-	*argc = 0;
-	argv[*argc] = (gchar *)g_strdup("mmutil_gstcs");
-	(*argc)++;
-	/* check disable registry scan */
-	argv[*argc] = g_strdup("--gst-disable-registry-update");
-	(*argc)++;
-	gstcs_debug("--gst-disable-registry-update");
-
-	gst_init(argc, &argv);
-
-	pGstreamer_s = g_new0(gstreamer_s, 1);
-
-	for (i = 0; i < (*argc); i++) {
-		GSTCS_FREE(argv[i]);
-	}
-	GSTCS_FREE(argv);
-	GSTCS_FREE(argc);
-
+	/* Print debug message for inout structure */
 	gstcs_debug("[input] format label : %s width: %d height: %d\t[output] format label: %s width: %d height: %d rotation vaule: %d",
 	pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height, pImgp_info->output_format_label, pImgp_info->dst_width, pImgp_info->dst_height, pImgp_info->angle);
 
+	/* Initialize gstreamer */
+	ret = _gstcs_init(&pGstreamer_s);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_error("Error: _gstcs_new is failed");
+		return ret;
+	}
+
+	/* Create input/output format for gstreamer processing */
 	input_format = _mm_set_input_image_format_s_struct(pImgp_info);
 	if (input_format == NULL) {
-		gstcs_error("memory allocation failed");
-		g_free(pGstreamer_s);
-		return GSTCS_ERROR_OUT_OF_MEMORY;
-	}
-	output_format = _mm_set_output_image_format_s_struct(pImgp_info, input_format);
-	if (output_format == NULL) {
-		gstcs_error("memory allocation failed");
-		GSTCS_FREE(input_format->format_label);
-		GSTCS_FREE(input_format->colorspace);
-		GSTCS_FREE(input_format);
-		g_free(pGstreamer_s);
+		gstcs_error("Error: memory allocation failed");
+		GSTCS_FREE(pGstreamer_s);
 		return GSTCS_ERROR_OUT_OF_MEMORY;
 	}
 
-	/* _format_label : I420, RGB888 etc*/
+	output_format = _mm_set_output_image_format_s_struct(pImgp_info, input_format);
+	if (output_format == NULL) {
+		gstcs_error("Error: memory allocation failed");
+		_gstcs_destroy_image_format(input_format);
+		GSTCS_FREE(pGstreamer_s);
+		return GSTCS_ERROR_OUT_OF_MEMORY;
+	}
+
+	/* Create default thread for async behavior */
+	ret = _gstcs_create_default_thread(pGstreamer_s);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_error("Error: _gstcs_create_default_thread is failed");
+		_gstcs_destroy_image_format(input_format);
+		_gstcs_destroy_image_format(output_format);
+		GSTCS_FREE(pGstreamer_s);
+		return ret;
+	}
+
+	/* Do gstreamer processing */
 	gstcs_debug("Start _mm_imgp_gstcs_processing ");
 	ret = _mm_imgp_gstcs_processing(pGstreamer_s, src, dst, input_format, output_format, pImgp_info); /* input: buffer pointer for input image , input image format, input image width, input image height, output: buffer porinter for output image */
 
@@ -864,23 +918,37 @@ _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst)
 		gstcs_error("ERROR - _mm_imgp_gstcs_processing");
 	}
 
-	GSTCS_FREE(input_format->format_label);
-	GSTCS_FREE(input_format->colorspace);
-	GSTCS_FREE(input_format);
+	/* Free resouces */
+	ret = _gstcs_destroy_default_thread(pGstreamer_s);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_error("Error: _gstcs_create_default_thread is failed");
+	}
 
-	GSTCS_FREE(output_format->format_label);
-	GSTCS_FREE(output_format->colorspace);
-	GSTCS_FREE(output_format);
-	g_free(pGstreamer_s);
+	_gstcs_destroy_image_format(input_format);
+	_gstcs_destroy_image_format(output_format);
+	GSTCS_FREE(pGstreamer_s);
 
 	return ret;
 }
 
-int
-mm_imgp(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst, imgp_type_e _imgp_type)
+int mm_imgp(imgp_info_s* pImgp_info, unsigned char *src, unsigned char *dst, imgp_type_e _imgp_type)
 {
 	if (pImgp_info == NULL) {
-		gstcs_error("input vaule is error");
+		gstcs_error("Error: input vaule is NULL");
+		return GSTCS_ERROR_INVALID_PARAMETER;
 	}
+
+	if (src == NULL || dst == NULL) {
+		gstcs_error("Error: src | dst is NULL");
+		return GSTCS_ERROR_INVALID_PARAMETER;
+	}
+
+	if (_imgp_type < 0 || _imgp_type > IMGP_MAX) {
+		gstcs_error("Error: imgp_type is wrong");
+		return GSTCS_ERROR_INVALID_PARAMETER;
+	}	
+
+	gstcs_debug("[src %p] [dst %p]", src, dst);
+
 	return _mm_imgp_gstcs(pImgp_info, src, dst);
 }
