@@ -777,7 +777,8 @@ mm_setup_image_size(const char* _format_label, int width, int height)
 	return size;
 }
 
-static int _gstcs_create_default_thread(gstreamer_s* gstreamer) {
+static int _gstcs_create_default_thread(gstreamer_s *gstreamer)
+{
 	if (gstreamer == NULL) {
 		gstcs_error("ERROR - gstreamer is null ");
 		return GSTCS_ERROR_INVALID_OPERATION;
@@ -799,7 +800,8 @@ static int _gstcs_create_default_thread(gstreamer_s* gstreamer) {
 	return GSTCS_ERROR_NONE;
 }
 
-static int _gstcs_destroy_default_thread(gstreamer_s* gstreamer) {
+static int _gstcs_destroy_default_thread(gstreamer_s *gstreamer)
+{
 	if (gstreamer == NULL) {
 		gstcs_error("ERROR - gstreamer is null ");
 		return GSTCS_ERROR_INVALID_OPERATION;
