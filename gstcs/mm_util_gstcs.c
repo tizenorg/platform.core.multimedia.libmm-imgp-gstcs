@@ -171,11 +171,10 @@ _mm_link_pipeline(gstreamer_s* pGstreamer_s, image_format_s* input_format, image
 {
 	/* set property */
 	gst_bin_add_many(GST_BIN(pGstreamer_s->pipeline), pGstreamer_s->appsrc, pGstreamer_s->colorspace, pGstreamer_s->videoscale, pGstreamer_s->videoflip, pGstreamer_s->appsink, NULL);
-	if (!gst_element_link_many(pGstreamer_s->appsrc, pGstreamer_s->colorspace, pGstreamer_s->videoscale, pGstreamer_s->videoflip, pGstreamer_s->appsink, NULL)) {
+	if (!gst_element_link_many(pGstreamer_s->appsrc, pGstreamer_s->colorspace, pGstreamer_s->videoscale, pGstreamer_s->videoflip, pGstreamer_s->appsink, NULL))
 		gstcs_error("Fail to link pipeline");
-	} else {
+	else
 		gstcs_debug("Success to link pipeline");
-	}
 
 	g_object_set(G_OBJECT(pGstreamer_s->appsrc), "stream-type", 0, "format", GST_FORMAT_TIME, NULL);
 	g_object_set(pGstreamer_s->appsrc, "num-buffers", 1, NULL);
@@ -592,17 +591,15 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 	}
 	for (y = 0; y < (unsigned int)(input_format->height); y++) {
 		guint8 *pLine = (guint8 *) &(src[src_row * y]);
-		for (i = 0; i < src_row; i++) {
+		for (i = 0; i < src_row; i++)
 			data[y * stride_row + i] = pLine[i];
-		}
-		for (i = src_row; i < stride_row; i++) {
+
+		for (i = src_row; i < stride_row; i++)
 			data[y * stride_row + i] = 0x00;
-		}
 	}
 	for (y = (unsigned int)(input_format->height); y < (unsigned int)(input_format->elevation); y++) {
-		for (i = 0; i < stride_row; i++) {
+		for (i = 0; i < stride_row; i++)
 			data[y * stride_row + i] = 0x00;
-		}
 	}
 	gst_buf = gst_buffer_new_wrapped_full(GST_MEMORY_FLAG_READONLY, data, src_size, 0, src_size, data, _mm_destroy_notify);
 
@@ -624,9 +621,8 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 
 	/*create pipeline*/
 	ret = _mm_create_pipeline(pGstreamer_s);
-	if (ret != GSTCS_ERROR_NONE) {
+	if (ret != GSTCS_ERROR_NONE)
 		gstcs_error("ERROR - mm_create_pipeline ");
-	}
 
 	/* Make appsink emit the "new-preroll" and "new-sample" signals. This option is by default disabled because signal emission is expensive and unneeded when the application prefers to operate in pull mode. */
 	gst_app_sink_set_emit_signals((GstAppSink*)pGstreamer_s->appsink, TRUE);
@@ -682,11 +678,10 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 
 	ret_state = gst_element_get_state(pGstreamer_s->pipeline, NULL, NULL, 1*GST_SECOND);
 
-	if (ret_state == GST_STATE_CHANGE_SUCCESS) {
+	if (ret_state == GST_STATE_CHANGE_SUCCESS)
 		gstcs_debug("GST_STATE_NULL ret_state = %d (GST_STATE_CHANGE_SUCCESS)\n", ret_state);
-	} else if (ret_state == GST_STATE_CHANGE_ASYNC) {
+	else if (ret_state == GST_STATE_CHANGE_ASYNC)
 		gstcs_debug("GST_STATE_NULL ret_state = %d (GST_STATE_CHANGE_ASYNC)\n", ret_state);
-	}
 
 	gstcs_debug("Success gst_element_get_state\n");
 
@@ -806,12 +801,13 @@ static int _gstcs_destroy_default_thread(gstreamer_s *gstreamer)
 		gstcs_error("ERROR - gstreamer is null ");
 		return GSTCS_ERROR_INVALID_OPERATION;
 	}
-	if (gstreamer->loop != NULL) {
+
+	if (gstreamer->loop != NULL)
 		g_main_loop_unref(gstreamer->loop);
-	}
-	if (gstreamer->context != NULL) {
+
+	if (gstreamer->context != NULL)
 		g_main_context_unref(gstreamer->context);
-	}
+
 	return GSTCS_ERROR_NONE;
 }
 
@@ -845,9 +841,9 @@ static int _gstcs_init(gstreamer_s** gstreamer)
 	}
 	argc++;
 	if (ret != GSTCS_ERROR_NONE) {
-		for (i = 0; i < argc; i++) {
+		for (i = 0; i < argc; i++)
 			GSTCS_FREE(argv[i]);
-		}
+
 		GSTCS_FREE(argv);
 		return ret;
 	}
@@ -860,9 +856,9 @@ static int _gstcs_init(gstreamer_s** gstreamer)
 		ret = GSTCS_ERROR_OUT_OF_MEMORY;
 	}
 
-	for (i = 0; i < argc; i++) {
+	for (i = 0; i < argc; i++)
 		GSTCS_FREE(argv[i]);
-	}
+
 	GSTCS_FREE(argv);
 	return ret;
 }
@@ -914,17 +910,15 @@ static int _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned 
 	gstcs_debug("Start _mm_imgp_gstcs_processing ");
 	ret = _mm_imgp_gstcs_processing(pGstreamer_s, src, dst, input_format, output_format, pImgp_info); /* input: buffer pointer for input image , input image format, input image width, input image height, output: buffer porinter for output image */
 
-	if (ret == GSTCS_ERROR_NONE) {
+	if (ret == GSTCS_ERROR_NONE)
 		gstcs_debug("End _mm_imgp_gstcs_processing [dst: %p]", dst);
-	} else if (ret != GSTCS_ERROR_NONE) {
+	else if (ret != GSTCS_ERROR_NONE)
 		gstcs_error("ERROR - _mm_imgp_gstcs_processing");
-	}
 
 	/* Free resouces */
 	ret = _gstcs_destroy_default_thread(pGstreamer_s);
-	if (ret != GSTCS_ERROR_NONE) {
+	if (ret != GSTCS_ERROR_NONE)
 		gstcs_error("Error: _gstcs_create_default_thread is failed");
-	}
 
 	_gstcs_destroy_image_format(input_format);
 	_gstcs_destroy_image_format(output_format);
