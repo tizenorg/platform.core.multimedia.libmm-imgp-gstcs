@@ -27,9 +27,47 @@
 #define MM_UTIL_ROUND_UP_8(num) (((num)+7)&~7)
 #define MM_UTIL_ROUND_UP_16(num) (((num)+15)&~15)
 
+static int __gstcs_get_byte_per_pixcel(const char *__format_label)
+{
+	int byte_per_pixcel = 1;
+	if (strcmp(__format_label, "RGB565") == 0) {
+		byte_per_pixcel = 2;
+	} else if (strcmp(__format_label, "RGB888") == 0 ||
+		strcmp(__format_label, "BGR888") == 0) {
+		byte_per_pixcel = 3;
+	} else if (strcmp(__format_label, "RGBA8888") == 0 ||
+		strcmp(__format_label, "ARGB8888") == 0 ||
+		strcmp(__format_label, "BGRA8888") == 0 ||
+		strcmp(__format_label, "ABGR8888") == 0 ||
+		strcmp(__format_label, "RGBX") == 0 ||
+		strcmp(__format_label, "XRGB") == 0 ||
+		strcmp(__format_label, "BGRX") == 0 ||
+		strcmp(__format_label, "XBGR") == 0) {
+		byte_per_pixcel = 4;
+	}
 
-static GstFlowReturn
-_mm_sink_sample(GstElement * appsink, gpointer user_data)
+	gstcs_debug("byte per pixcel : %d", byte_per_pixcel);
+
+	return byte_per_pixcel;
+}
+
+static void __gstcs_destroy_notify(gpointer data)
+{
+	unsigned char *_data = (unsigned char *)data;
+	if (_data != NULL) {
+		free(_data);
+		_data = NULL;
+	}
+}
+
+static void __gstcs_check_caps_format(GstCaps* caps)
+{
+	GstStructure *caps_structure = gst_caps_get_structure(caps, 0);
+	const gchar* formatInfo = gst_structure_get_string(caps_structure, "format");
+	gstcs_debug("[%d] caps: %s", GST_IS_CAPS(caps), formatInfo);
+}
+
+static GstFlowReturn _gstcs_sink_sample(GstElement * appsink, gpointer user_data)
 {
 	GstBuffer *_buf = NULL;
 	GstSample *_sample = NULL;
@@ -56,8 +94,7 @@ _mm_sink_sample(GstElement * appsink, gpointer user_data)
 	return GST_FLOW_OK;
 }
 
-static gboolean
-_mm_on_src_message(GstBus * bus, GstMessage * message, gpointer user_data)
+static gboolean _gstcs_on_src_message(GstBus * bus, GstMessage * message, gpointer user_data)
 {
 	gstreamer_s * pGstreamer_s = (gstreamer_s*) user_data;
 	switch (GST_MESSAGE_TYPE(message)) {
@@ -88,32 +125,7 @@ _mm_on_src_message(GstBus * bus, GstMessage * message, gpointer user_data)
 	return TRUE;
 }
 
-static int
-_mm_get_byte_per_pixcel(const char *__format_label)
-{
-	int byte_per_pixcel = 1;
-	if (strcmp(__format_label, "RGB565") == 0) {
-		byte_per_pixcel = 2;
-	} else if (strcmp(__format_label, "RGB888") == 0 ||
-		strcmp(__format_label, "BGR888") == 0) {
-		byte_per_pixcel = 3;
-	} else if (strcmp(__format_label, "RGBA8888") == 0 ||
-		strcmp(__format_label, "ARGB8888") == 0 ||
-		strcmp(__format_label, "BGRA8888") == 0 ||
-		strcmp(__format_label, "ABGR8888") == 0 ||
-		strcmp(__format_label, "RGBX") == 0 ||
-		strcmp(__format_label, "XRGB") == 0 ||
-		strcmp(__format_label, "BGRX") == 0 ||
-		strcmp(__format_label, "XBGR") == 0) {
-		byte_per_pixcel = 4;
-	}
-
-	gstcs_debug("byte per pixcel : %d", byte_per_pixcel);
-
-	return byte_per_pixcel;
-}
-
-static int _mm_create_pipeline(gstreamer_s* pGstreamer_s)
+static int _gstcs_create_pipeline(gstreamer_s* pGstreamer_s)
 {
 	int ret = GSTCS_ERROR_NONE;
 	pGstreamer_s->pipeline = gst_pipeline_new("pipeline");
@@ -149,25 +161,19 @@ static int _mm_create_pipeline(gstreamer_s* pGstreamer_s)
 	return ret;
 }
 
-static void _mm_destroy_notify(gpointer data)
-{
-	unsigned char *_data = (unsigned char *)data;
-	if (_data != NULL) {
-		free(_data);
-		_data = NULL;
+static void __gstcs_destroy_resources(gstreamer_s* gstreamer) {
+	if (gstreamer != NULL) {
+		if (gstreamer->output_buffer != NULL) {
+			gstcs_debug("unref output buffer");
+			gst_buffer_unref(gstreamer->output_buffer);
+			gstreamer->output_buffer = NULL;
+		}
+		if (gstreamer->pipeline != NULL)
+			gst_object_unref(gstreamer->pipeline);
 	}
 }
 
-static void
-_mm_check_caps_format(GstCaps* caps)
-{
-	GstStructure *caps_structure = gst_caps_get_structure(caps, 0);
-	const gchar* formatInfo = gst_structure_get_string(caps_structure, "format");
-	gstcs_debug("[%d] caps: %s", GST_IS_CAPS(caps), formatInfo);
-}
-
-static void
-_mm_link_pipeline(gstreamer_s* pGstreamer_s, image_format_s* input_format, image_format_s* output_format, int value)
+static void _gstcs_link_pipeline(gstreamer_s* pGstreamer_s, image_format_s* input_format, image_format_s* output_format, int value)
 {
 	/* set property */
 	gst_bin_add_many(GST_BIN(pGstreamer_s->pipeline), pGstreamer_s->appsrc, pGstreamer_s->colorspace, pGstreamer_s->videoscale, pGstreamer_s->videoflip, pGstreamer_s->appsink, NULL);
@@ -186,8 +192,7 @@ _mm_link_pipeline(gstreamer_s* pGstreamer_s, image_format_s* input_format, image
 	g_object_set(pGstreamer_s->appsink, "emit-signals", TRUE, "sync", FALSE, NULL);
 }
 
-static void
-_mm_set_image_input_format_s_capabilities(image_format_s* __format) /*_format_label: I420 _colorsapace: YUV */
+static void _gstcs_set_input_format_capabilities(image_format_s* __format) /*_format_label: I420 _colorsapace: YUV */
 {
 	char _format_name[sizeof(GST_VIDEO_FORMATS_ALL)] = {'\0'};
 	GstVideoFormat videoFormat;
@@ -279,14 +284,13 @@ _mm_set_image_input_format_s_capabilities(image_format_s* __format) /*_format_la
 
 	if (__format->caps) {
 		gstcs_debug("###__format->caps is not NULL###, %p", __format->caps);
-		_mm_check_caps_format(__format->caps);
+		__gstcs_check_caps_format(__format->caps);
 	} else {
 		gstcs_error("__format->caps is NULL");
 	}
 }
 
-static void
-_mm_set_image_output_format_s_capabilities(image_format_s* __format) /*_format_label: I420 _colorsapace: YUV */
+static void _gstcs_set_output_format_capabilities(image_format_s* __format) /*_format_label: I420 _colorsapace: YUV */
 {
 	char _format_name[sizeof(GST_VIDEO_FORMATS_ALL)] = {'\0'};
 	GstVideoFormat videoFormat;
@@ -370,21 +374,22 @@ _mm_set_image_output_format_s_capabilities(image_format_s* __format) /*_format_l
 
 	if (__format->caps) {
 		gstcs_debug("###__format->caps is not NULL###, %p", __format->caps);
-		_mm_check_caps_format(__format->caps);
+		__gstcs_check_caps_format(__format->caps);
 	} else {
 		gstcs_error("__format->caps is NULL");
 	}
 }
 
-static void
-_mm_set_image_colorspace(image_format_s* __format)
+static int _gstcs_set_image_colorspace(image_format_s* __format)
 {
+	int ret = GSTCS_ERROR_NONE;
+
 	gstcs_debug("format_label: %s\n", __format->format_label);
 
 	__format->colorspace = (char*)malloc(sizeof(char) * IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	if (__format->colorspace == NULL) {
 		gstcs_error("memory allocation failed");
-		return;
+		return GSTCS_ERROR_OUT_OF_MEMORY;
 	}
 	memset(__format->colorspace, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	if ((strcmp(__format->format_label, "I420") == 0) || (strcmp(__format->format_label, "Y42B") == 0) || (strcmp(__format->format_label, "Y444") == 0)
@@ -400,6 +405,8 @@ _mm_set_image_colorspace(image_format_s* __format)
 		gstcs_error("Check your colorspace format label");
 		GSTCS_FREE(__format->colorspace);
 	}
+
+	return ret;
 }
 
 static int _gstcs_create_image_format(image_format_s **format)
@@ -432,8 +439,7 @@ static void _gstcs_destroy_image_format(image_format_s *format)
 	}
 }
 
-static void
-_mm_round_up_input_image_widh_height(image_format_s* pFormat)
+static void _gstcs_round_up_input_width_height(image_format_s* pFormat)
 {
 	if (strcmp(pFormat->colorspace, "YUV") == 0) {
 		pFormat->stride = MM_UTIL_ROUND_UP_8(pFormat->width);
@@ -448,8 +454,7 @@ _mm_round_up_input_image_widh_height(image_format_s* pFormat)
 	gstcs_debug("input_format stride: %d, elevation: %d", pFormat->stride, pFormat->elevation);
 }
 
-static image_format_s*
-_mm_set_input_image_format_s_struct(imgp_info_s* pImgp_info) /* char* __format_label, int __width, int __height) */
+static image_format_s* _gstcs_set_input_image_format(imgp_info_s* pImgp_info) /* char* __format_label, int __width, int __height) */
 {
 	int ret = GSTCS_ERROR_NONE;
 	image_format_s* __format = NULL;
@@ -469,21 +474,25 @@ _mm_set_input_image_format_s_struct(imgp_info_s* pImgp_info) /* char* __format_l
 	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	strncpy(__format->format_label, pImgp_info->input_format_label, strlen(pImgp_info->input_format_label));
 	gstcs_debug("input_format_label: %s\n", pImgp_info->input_format_label);
-	_mm_set_image_colorspace(__format);
+	ret = _gstcs_set_image_colorspace(__format);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_debug("Error: _gstcs_set_image_colorspace is failed (%d)\n", ret);
+		_gstcs_destroy_image_format(__format);
+		return NULL;
+	}
 
 	__format->width = pImgp_info->src_width;
 	__format->height = pImgp_info->src_height;
-	_mm_round_up_input_image_widh_height(__format);
+	_gstcs_round_up_input_width_height(__format);
 
 	__format->blocksize = mm_setup_image_size(pImgp_info->input_format_label, pImgp_info->src_width, pImgp_info->src_height);
 	gstcs_debug("blocksize: %d\n", __format->blocksize);
-	_mm_set_image_input_format_s_capabilities(__format);
+	_gstcs_set_input_format_capabilities(__format);
 
 	return __format;
 }
 
-static void
-_mm_round_up_output_image_widh_height(image_format_s* pFormat, const image_format_s *input_format)
+static void _gstcs_round_up_output_width_height(image_format_s* pFormat, const image_format_s *input_format)
 {
 	if (strcmp(pFormat->colorspace, "YUV") == 0) {
 		pFormat->stride = MM_UTIL_ROUND_UP_8(pFormat->width);
@@ -503,8 +512,7 @@ _mm_round_up_output_image_widh_height(image_format_s* pFormat, const image_forma
 	gstcs_debug("output_format stride: %d, elevation: %d", pFormat->stride, pFormat->elevation);
 }
 
-static image_format_s*
-_mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info, const image_format_s *input_format)
+static image_format_s* _gstcs_set_output_image_format(imgp_info_s* pImgp_info, const image_format_s *input_format)
 {
 	int ret = GSTCS_ERROR_NONE;
 	image_format_s* __format = NULL;
@@ -523,23 +531,28 @@ _mm_set_output_image_format_s_struct(imgp_info_s* pImgp_info, const image_format
 	}
 	memset(__format->format_label, 0, IMAGE_FORMAT_LABEL_BUFFER_SIZE);
 	strncpy(__format->format_label, pImgp_info->output_format_label, strlen(pImgp_info->output_format_label));
-	_mm_set_image_colorspace(__format);
+	ret = _gstcs_set_image_colorspace(__format);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_debug("Error: _gstcs_set_image_colorspace is failed (%d)\n", ret);
+		_gstcs_destroy_image_format(__format);
+		return NULL;
+	}
 
 	__format->width = pImgp_info->dst_width;
 	__format->height = pImgp_info->dst_height;
-	_mm_round_up_output_image_widh_height(__format, input_format);
+	_gstcs_round_up_output_width_height(__format, input_format);
 
 	pImgp_info->output_stride = __format->stride;
 	pImgp_info->output_elevation = __format->elevation;
 
 	__format->blocksize = mm_setup_image_size(pImgp_info->output_format_label, pImgp_info->dst_width, pImgp_info->dst_height);
 	gstcs_debug("output_format_label: %s", pImgp_info->output_format_label);
-	_mm_set_image_output_format_s_capabilities(__format);
+	_gstcs_set_output_format_capabilities(__format);
+
 	return __format;
 }
 
-static int
-_mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, unsigned char *src, gstreamer_s * pGstreamer_s)
+static int _gstcs_push_buffer_into_pipeline(imgp_info_s* pImgp_info, unsigned char *src, gstreamer_s * pGstreamer_s)
 {
 	int ret = GSTCS_ERROR_NONE;
 
@@ -560,8 +573,7 @@ _mm_push_buffer_into_pipeline(imgp_info_s* pImgp_info, unsigned char *src, gstre
 	return ret;
 }
 
-static int
-_mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *output_format, unsigned char *src, gstreamer_s * pGstreamer_s)
+static int _gstcs_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *output_format, unsigned char *src, gstreamer_s * pGstreamer_s)
 {
 	int ret = GSTCS_ERROR_NONE;
 	GstBuffer *gst_buf = NULL;
@@ -579,12 +591,12 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 	src_size = mm_setup_image_size(input_format->format_label, stride, elevation);
 	gstcs_debug("buffer size (src): %d", src_size);
 
-	int byte_per_pixcel = _mm_get_byte_per_pixcel(input_format->format_label);
+	int byte_per_pixcel = __gstcs_get_byte_per_pixcel(input_format->format_label);
 	unsigned int src_row = input_format->width * byte_per_pixcel;
 	unsigned int stride_row = stride * byte_per_pixcel;
 	unsigned int i = 0, y = 0;
 	gstcs_debug("padding will be inserted to buffer");
-	data = (unsigned char *) g_malloc(src_size);
+	data = (unsigned char *) malloc(src_size);
 	if (data == NULL) {
 		gstcs_error("app_buffer is NULL\n");
 		return GSTCS_ERROR_INVALID_PARAMETER;
@@ -601,7 +613,7 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 		for (i = 0; i < stride_row; i++)
 			data[y * stride_row + i] = 0x00;
 	}
-	gst_buf = gst_buffer_new_wrapped_full(GST_MEMORY_FLAG_READONLY, data, src_size, 0, src_size, data, _mm_destroy_notify);
+	gst_buf = gst_buffer_new_wrapped_full(GST_MEMORY_FLAG_READONLY, data, src_size, 0, src_size, data, __gstcs_destroy_notify);
 
 	if (gst_buf == NULL) {
 		gstcs_error("buffer is NULL\n");
@@ -612,23 +624,38 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 	return ret;
 }
 
-static int
-_mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigned char *dst, image_format_s* input_format, image_format_s* output_format, imgp_info_s* pImgp_info)
+static int _gstcs_imgp_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigned char *dst, image_format_s* input_format, image_format_s* output_format, imgp_info_s* pImgp_info)
 {
 	GstBus *bus = NULL;
 	GstStateChangeReturn ret_state;
 	int ret = GSTCS_ERROR_NONE;
 
 	/*create pipeline*/
-	ret = _mm_create_pipeline(pGstreamer_s);
-	if (ret != GSTCS_ERROR_NONE)
-		gstcs_error("ERROR - mm_create_pipeline ");
+	ret = _gstcs_create_pipeline(pGstreamer_s);
+	if (ret != GSTCS_ERROR_NONE) {
+		gstcs_error("ERROR - _gstcs_create_pipeline ");
+	}
+
+	pGstreamer_s->context = g_main_context_new();
+	if (pGstreamer_s->context == NULL) {
+		gstcs_error("ERROR - g_main_context_new ");
+		__gstcs_destroy_resources(pGstreamer_s);
+		return GSTCS_ERROR_INVALID_OPERATION;
+	}
+	pGstreamer_s->loop = g_main_loop_new(pGstreamer_s->context, FALSE);
+	if (pGstreamer_s->loop == NULL) {
+		gstcs_error("ERROR - g_main_loop_new ");
+		__gstcs_destroy_resources(pGstreamer_s);
+		return GSTCS_ERROR_INVALID_OPERATION;
+	}
+
+	g_main_context_push_thread_default(pGstreamer_s->context);
 
 	/* Make appsink emit the "new-preroll" and "new-sample" signals. This option is by default disabled because signal emission is expensive and unneeded when the application prefers to operate in pull mode. */
 	gst_app_sink_set_emit_signals((GstAppSink*)pGstreamer_s->appsink, TRUE);
 
 	bus = gst_pipeline_get_bus(GST_PIPELINE(pGstreamer_s->pipeline));
-	gst_bus_add_watch(bus, (GstBusFunc) _mm_on_src_message, pGstreamer_s);
+	gst_bus_add_watch(bus, (GstBusFunc) _gstcs_on_src_message, pGstreamer_s);
 	gst_object_unref(bus);
 
 	gst_app_src_set_caps(GST_APP_SRC(pGstreamer_s->appsrc), input_format->caps);
@@ -637,27 +664,27 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 	if (((input_format->width != input_format->stride) || (input_format->height != input_format->elevation)) &&
 		((strcmp(input_format->colorspace, "RGB") == 0) || (strcmp(input_format->colorspace, "RGBA") == 0))) {
 		gstcs_debug("Start _mm_push_buffer_into_pipeline_new");
-		ret = _mm_push_buffer_into_pipeline_new(input_format, output_format, src, pGstreamer_s);
+		ret = _gstcs_push_buffer_into_pipeline_new(input_format, output_format, src, pGstreamer_s);
 	} else {
 		gstcs_debug("Start mm_push_buffer_into_pipeline");
-		ret = _mm_push_buffer_into_pipeline(pImgp_info, src, pGstreamer_s);
+		ret = _gstcs_push_buffer_into_pipeline(pImgp_info, src, pGstreamer_s);
 	}
 	if (ret != GSTCS_ERROR_NONE) {
 		gstcs_error("ERROR - mm_push_buffer_into_pipeline ");
-		gst_object_unref(pGstreamer_s->pipeline);
+		__gstcs_destroy_resources(pGstreamer_s);
 		return ret;
 	}
 	gstcs_debug("End mm_push_buffer_into_pipeline");
 
 	/*link pipeline*/
 	gstcs_debug("Start mm_link_pipeline");
-	_mm_link_pipeline(pGstreamer_s, input_format, output_format, pImgp_info->angle);
+	_gstcs_link_pipeline(pGstreamer_s, input_format, output_format, pImgp_info->angle);
 	gstcs_debug("End mm_link_pipeline");
 
 	/* Conecting to the new-sample signal emited by the appsink*/
-	gstcs_debug("Start G_CALLBACK(_mm_sink_sample)");
-	g_signal_connect(pGstreamer_s->appsink, "new-sample", G_CALLBACK(_mm_sink_sample), pGstreamer_s);
-	gstcs_debug("End G_CALLBACK(_mm_sink_sample)");
+	gstcs_debug("Start G_CALLBACK(_gstcs_sink_sample)");
+	g_signal_connect(pGstreamer_s->appsink, "new-sample", G_CALLBACK(_gstcs_sink_sample), pGstreamer_s);
+	gstcs_debug("End G_CALLBACK(_gstcs_sink_sample)");
 
 	/* GST_STATE_PLAYING*/
 	gstcs_debug("Start GST_STATE_PLAYING");
@@ -693,7 +720,7 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 			gst_buffer_map(pGstreamer_s->output_buffer, &mapinfo, GST_MAP_READ);
 			int buffer_size = mapinfo.size;
 			int calc_buffer_size = 0;
-			if (((pImgp_info->dst_width != output_format->width) || (pImgp_info->dst_height != output_format->height)) &&
+			if ((((int)pImgp_info->dst_width != output_format->width) || ((int)pImgp_info->dst_height != output_format->height)) &&
 				((strcmp(input_format->colorspace, "RGB") == 0) || (strcmp(input_format->colorspace, "RGBA") == 0))) {
 				gstcs_debug("calculate image size with stride & elevation");
 				calc_buffer_size = mm_setup_image_size(pImgp_info->output_format_label, output_format->width, output_format->height);
@@ -703,10 +730,7 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 			gstcs_debug("buffer size: %d, calc: %d\n", buffer_size, calc_buffer_size);
 			if (buffer_size != calc_buffer_size) {
 				gstcs_debug("Buffer size is different \n");
-				gstcs_debug("unref output buffer");
-				gst_buffer_unref(pGstreamer_s->output_buffer);
-				gst_object_unref(pGstreamer_s->pipeline);
-				pGstreamer_s->output_buffer = NULL;
+				__gstcs_destroy_resources(pGstreamer_s);
 				return GSTCS_ERROR_INVALID_OPERATION;
 			}
 			gstcs_debug("pGstreamer_s->output_buffer: 0x%2x\n", pGstreamer_s->output_buffer);
@@ -715,21 +739,19 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 			gst_buffer_unmap(pGstreamer_s->output_buffer, &mapinfo);
 		} else {
 			gstcs_debug("pGstreamer_s->output_buffer is NULL");
+			pImgp_info->buffer_size = 0;
+			pImgp_info->dst_width = 0;
+			pImgp_info->dst_height = 0;
 		}
 	}
-	gstcs_debug("unref output buffer");
-	gst_buffer_unref(pGstreamer_s->output_buffer);
-	gst_object_unref(pGstreamer_s->pipeline);
-	pGstreamer_s->output_buffer = NULL;
+	__gstcs_destroy_resources(pGstreamer_s);
 
 	gstcs_debug("End gstreamer processing");
 	gstcs_debug("dst: %p", dst);
 	return ret;
 }
 
-
-static int
-mm_setup_image_size(const char* _format_label, int width, int height)
+static int mm_setup_image_size(const char* _format_label, int width, int height)
 {
 	int size = 0;
 
@@ -880,15 +902,14 @@ static int _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned 
 		return ret;
 	}
 
-	/* Create input/output format for gstreamer processing */
-	input_format = _mm_set_input_image_format_s_struct(pImgp_info);
+	/* Create input/output format for image processing */
+	input_format = _gstcs_set_input_image_format(pImgp_info);
 	if (input_format == NULL) {
 		gstcs_error("Error: memory allocation failed");
 		GSTCS_FREE(pGstreamer_s);
 		return GSTCS_ERROR_OUT_OF_MEMORY;
 	}
-
-	output_format = _mm_set_output_image_format_s_struct(pImgp_info, input_format);
+	output_format = _gstcs_set_output_image_format(pImgp_info, input_format);
 	if (output_format == NULL) {
 		gstcs_error("Error: memory allocation failed");
 		_gstcs_destroy_image_format(input_format);
@@ -908,12 +929,12 @@ static int _mm_imgp_gstcs(imgp_info_s* pImgp_info, unsigned char *src, unsigned 
 
 	/* Do gstreamer processing */
 	gstcs_debug("Start _mm_imgp_gstcs_processing ");
-	ret = _mm_imgp_gstcs_processing(pGstreamer_s, src, dst, input_format, output_format, pImgp_info); /* input: buffer pointer for input image , input image format, input image width, input image height, output: buffer porinter for output image */
+	ret = _gstcs_imgp_processing(pGstreamer_s, src, dst, input_format, output_format, pImgp_info); /* input: buffer pointer for input image , input image format, input image width, input image height, output: buffer porinter for output image */
 
 	if (ret == GSTCS_ERROR_NONE)
-		gstcs_debug("End _mm_imgp_gstcs_processing [dst: %p]", dst);
+		gstcs_debug("End _gstcs_imgp_processing [dst: %p]", dst);
 	else if (ret != GSTCS_ERROR_NONE)
-		gstcs_error("ERROR - _mm_imgp_gstcs_processing");
+		gstcs_error("Error: _gstcs_imgp_processing");
 
 	/* Free resouces */
 	ret = _gstcs_destroy_default_thread(pGstreamer_s);
