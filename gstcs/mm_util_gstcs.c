@@ -584,7 +584,7 @@ _mm_push_buffer_into_pipeline_new(image_format_s *input_format, image_format_s *
 	unsigned int stride_row = stride * byte_per_pixcel;
 	unsigned int i = 0, y = 0;
 	gstcs_debug("padding will be inserted to buffer");
-	data = (unsigned char *) g_malloc(src_size);
+	data = (unsigned char *) malloc(src_size);
 	if (data == NULL) {
 		gstcs_error("app_buffer is NULL\n");
 		return GSTCS_ERROR_INVALID_PARAMETER;
