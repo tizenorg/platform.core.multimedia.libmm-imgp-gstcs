@@ -693,7 +693,7 @@ _mm_imgp_gstcs_processing(gstreamer_s* pGstreamer_s, unsigned char *src, unsigne
 			gst_buffer_map(pGstreamer_s->output_buffer, &mapinfo, GST_MAP_READ);
 			int buffer_size = mapinfo.size;
 			int calc_buffer_size = 0;
-			if (((pImgp_info->dst_width != output_format->width) || (pImgp_info->dst_height != output_format->height)) &&
+			if (((pImgp_info->dst_width != (unsigned int)(output_format->width)) || (pImgp_info->dst_height != (unsigned int)(output_format->height))) &&
 				((strcmp(input_format->colorspace, "RGB") == 0) || (strcmp(input_format->colorspace, "RGBA") == 0))) {
 				gstcs_debug("calculate image size with stride & elevation");
 				calc_buffer_size = mm_setup_image_size(pImgp_info->output_format_label, output_format->width, output_format->height);
