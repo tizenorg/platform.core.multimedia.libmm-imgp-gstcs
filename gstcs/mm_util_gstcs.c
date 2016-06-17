@@ -426,6 +426,7 @@ static int _gstcs_create_image_format(image_format_s **format)
 static void _gstcs_destroy_image_format(image_format_s *format)
 {
 	if (format != NULL) {
+		gst_caps_unref(format->caps);
 		GSTCS_FREE(format->format_label);
 		GSTCS_FREE(format->colorspace);
 		GSTCS_FREE(format);
